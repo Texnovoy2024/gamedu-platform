@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft, Globe2 } from 'lucide-react'
 import { playCorrect, playWrong, playCombo, playVictory, playDefeat } from '../../../utils/gameAudio'
-import type { MascotMood } from '../MiniGamesPage'
 
 // ─── Mamlakatlar va poytaxtlar ────────────────────────────────────────────────
 const COUNTRIES = [
@@ -86,7 +85,6 @@ export function MapGame({ onEnd }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null)
   const [timeLeft, setTimeLeft] = useState(TIME_PER_ROUND)
-  const [mascotMood, setMascotMood] = useState<MascotMood>('idle')
   const [showEmoji, setShowEmoji] = useState(false)
   const [emojiVal, setEmojiVal] = useState('')
   const [options, setOptions] = useState<string[]>([])
@@ -102,7 +100,6 @@ export function MapGame({ onEnd }: Props) {
     setSelected(null)
     setFeedback(null)
     setTimeLeft(TIME_PER_ROUND)
-    setMascotMood('thinking')
     setPhase('playing')
   }
 
@@ -143,12 +140,11 @@ export function MapGame({ onEnd }: Props) {
       setStreak(newStreak)
       setMaxStreak(ms => Math.max(ms, newStreak))
       setCorrect(c => c + 1)
-      if (newStreak >= 3) { playCombo(); setMascotMood('excited'); setEmojiVal('🔥') }
-      else { playCorrect(); setMascotMood('happy'); setEmojiVal('✅') }
+      if (newStreak >= 3) { playCombo(); setEmojiVal('🔥') }
+      else { playCorrect(); setEmojiVal('✅') }
     } else {
       setStreak(0)
       playWrong()
-      setMascotMood('sad')
       setEmojiVal(ans === null ? '⏰' : '❌')
     }
 
@@ -159,12 +155,11 @@ export function MapGame({ onEnd }: Props) {
       const next = round + 1
       if (next >= TOTAL_ROUNDS) {
         const finalXp = Math.min(160, score + (isCorrect ? XP_PER_CORRECT : 0))
-        if (finalXp > 80) { playVictory(); setMascotMood('victory') }
-        else { playDefeat(); setMascotMood('sad') }
+        if (finalXp > 80) { playVictory() }
+        else { playDefeat() }
         setPhase('result')
       } else {
         setRound(next)
-        setMascotMood('thinking')
       }
     }, 1200)
   }

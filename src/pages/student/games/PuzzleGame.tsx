@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Puzzle, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft, Clock } from 'lucide-react'
 import { playCorrect, playWrong, playFlip, playVictory, playDefeat } from '../../../utils/gameAudio'
-import type { MascotMood } from '../MiniGamesPage'
 
 // ─── Puzzle rasmlar (emoji grid) ──────────────────────────────────────────────
 const PUZZLES = [
@@ -82,7 +81,6 @@ export function PuzzleGame({ onEnd }: Props) {
   const [previewLeft, setPreviewLeft] = useState(PREVIEW_TIME)
   const [timeLeft, setTimeLeft] = useState(60)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
-  const [mascotMood, setMascotMood] = useState<MascotMood>('idle')
   const [showEmoji, setShowEmoji] = useState(false)
   const [emojiVal, setEmojiVal] = useState('')
   const [moves, setMoves] = useState(0)
@@ -96,7 +94,6 @@ export function PuzzleGame({ onEnd }: Props) {
     setScore(0)
     setSolved(0)
     setMoves(0)
-    setMascotMood('thinking')
     loadPuzzle(selected[0])
     setPhase('preview')
     setPreviewLeft(PREVIEW_TIME)
@@ -181,11 +178,9 @@ export function PuzzleGame({ onEnd }: Props) {
       setScore(s => Math.min(200, s + gained))
       setSolved(s => s + 1)
       playCorrect()
-      setMascotMood('excited')
       setEmojiVal('🧩✅')
     } else {
       playWrong()
-      setMascotMood('sad')
       setEmojiVal('⏰')
     }
 
@@ -196,15 +191,14 @@ export function PuzzleGame({ onEnd }: Props) {
       const next = puzzleIndex + 1
       if (next >= TOTAL_PUZZLES) {
         const finalXp = Math.min(200, score + (success ? XP_PER_PUZZLE : 0))
-        if (finalXp > 100) { playVictory(); setMascotMood('victory') }
-        else { playDefeat(); setMascotMood('sad') }
+        if (finalXp > 100) { playVictory() }
+        else { playDefeat() }
         setPhase('result')
       } else {
         setPuzzleIndex(next)
         loadPuzzle(puzzles[next])
         setPhase('preview')
         setPreviewLeft(PREVIEW_TIME)
-        setMascotMood('thinking')
       }
     }, 1500)
   }

@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Type, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft, Zap } from 'lucide-react'
 import { playCorrect, playWrong, playCombo, playVictory, playDefeat } from '../../../utils/gameAudio'
-import type { MascotMood } from '../MiniGamesPage'
 
 // ─── O'zbek so'zlari banki ────────────────────────────────────────────────────
 // Har bir so'z: { word, category, emoji }
@@ -118,7 +117,6 @@ export function WordChainGame({ onEnd }: Props) {
   const [timeLeft, setTimeLeft] = useState(TIME_PER_WORD)
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | 'timeout' | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState('')
-  const [mascotMood, setMascotMood] = useState<MascotMood>('idle')
   const [showEmoji, setShowEmoji] = useState(false)
   const [emojiVal, setEmojiVal] = useState('')
   const [round, setRound] = useState(0)
@@ -139,7 +137,6 @@ export function WordChainGame({ onEnd }: Props) {
     setTimeLeft(TIME_PER_WORD)
     setFeedback(null)
     setRound(0)
-    setMascotMood('thinking')
     setHint(null)
     setPhase('playing')
   }
@@ -173,7 +170,6 @@ export function WordChainGame({ onEnd }: Props) {
     setFeedback('timeout')
     setFeedbackMsg(`Vaqt tugadi! "${currentLetter}" harfidan boshlanadigan so'z kerak edi`)
     playWrong()
-    setMascotMood('sad')
     setEmojiVal('⏰')
     setShowEmoji(true)
     setStreak(0)
@@ -197,7 +193,6 @@ export function WordChainGame({ onEnd }: Props) {
         setInput('')
         setHint(null)
         setTimeLeft(TIME_PER_WORD)
-        setMascotMood('thinking')
       }
     }, 1800)
   }
@@ -212,21 +207,18 @@ export function WordChainGame({ onEnd }: Props) {
       setFeedback('wrong')
       setFeedbackMsg(`So'z "${currentLetter}" harfidan boshlanishi kerak!`)
       playWrong()
-      setMascotMood('sad')
       setEmojiVal('❌')
       setStreak(0)
     } else if (usedWords.includes(word)) {
       setFeedback('wrong')
       setFeedbackMsg('Bu so\'z allaqachon ishlatilgan!')
       playWrong()
-      setMascotMood('sad')
       setEmojiVal('🔄')
       setStreak(0)
     } else if (!WORD_BANK.find(w => w.word === word)) {
       setFeedback('wrong')
       setFeedbackMsg('Bu so\'z lug\'atda topilmadi!')
       playWrong()
-      setMascotMood('sad')
       setEmojiVal('❓')
       setStreak(0)
     } else {
@@ -244,8 +236,8 @@ export function WordChainGame({ onEnd }: Props) {
       setFeedback('correct')
       const wordInfo = WORD_BANK.find(w => w.word === word)
       setFeedbackMsg(`${wordInfo?.emoji || '✅'} ${wordInfo?.category || ''} — +${gained} XP`)
-      if (newStreak >= 3) { playCombo(); setMascotMood('excited'); setEmojiVal('🔥') }
-      else { playCorrect(); setMascotMood('happy'); setEmojiVal('✅') }
+      if (newStreak >= 3) { playCombo(); setEmojiVal('🔥') }
+      else { playCorrect(); setEmojiVal('✅') }
     }
 
     setShowEmoji(true)
@@ -261,14 +253,13 @@ export function WordChainGame({ onEnd }: Props) {
       setInput('')
       setHint(null)
       setTimeLeft(TIME_PER_WORD)
-      setMascotMood('thinking')
     }, 1400)
   }
 
   const finishGame = () => {
     const finalXp = Math.min(250, score)
-    if (finalXp > 120) { playVictory(); setMascotMood('victory') }
-    else { playDefeat(); setMascotMood('sad') }
+    if (finalXp > 120) { playVictory() }
+    else { playDefeat() }
     setPhase('result')
   }
 

@@ -3,7 +3,6 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Music, Play, Square, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft } from 'lucide-react'
 import { playCorrect, playWrong, playVictory, playDefeat } from '../../../utils/gameAudio'
-import type { MascotMood } from '../MiniGamesPage'
 
 // ─── Qo'shiqlar — Web Audio API bilan melodiya ────────────────────────────────
 // Har bir qo'shiq uchun nota ketma-ketligi (Hz) va davomiyligi (ms)
@@ -170,7 +169,6 @@ export function MusicQuizGame({ onEnd }: Props) {
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [hasPlayed, setHasPlayed] = useState(false)
-  const [mascotMood, setMascotMood] = useState<MascotMood>('idle')
   const [showEmoji, setShowEmoji] = useState(false)
   const [emojiVal, setEmojiVal] = useState('')
   const [playsLeft, setPlaysLeft] = useState(2)
@@ -192,7 +190,6 @@ export function MusicQuizGame({ onEnd }: Props) {
     setIsPlaying(false)
     setHasPlayed(false)
     setPlaysLeft(2)
-    setMascotMood('thinking')
     setPhase('playing')
   }
 
@@ -203,7 +200,6 @@ export function MusicQuizGame({ onEnd }: Props) {
     setIsPlaying(true)
     setHasPlayed(true)
     setPlaysLeft(p => p - 1)
-    setMascotMood('thinking')
 
     stopMelodyRef.current = playMelody(q.notes, () => {
       setIsPlaying(false)
@@ -234,12 +230,10 @@ export function MusicQuizGame({ onEnd }: Props) {
       setMaxStreak(ms => Math.max(ms, newStreak))
       setCorrect(c => c + 1)
       playCorrect()
-      setMascotMood(newStreak >= 3 ? 'excited' : 'happy')
       setEmojiVal(newStreak >= 3 ? '🎵🔥' : '🎵✅')
     } else {
       setStreak(0)
       playWrong()
-      setMascotMood('sad')
       setEmojiVal('🎵❌')
     }
 
@@ -250,8 +244,8 @@ export function MusicQuizGame({ onEnd }: Props) {
       const next = round + 1
       if (next >= TOTAL_ROUNDS) {
         const finalXp = Math.min(180, score + (isCorrect ? XP_PER_CORRECT : 0))
-        if (finalXp > 90) { playVictory(); setMascotMood('victory') }
-        else { playDefeat(); setMascotMood('sad') }
+        if (finalXp > 90) { playVictory() }
+        else { playDefeat() }
         setPhase('result')
       } else {
         setRound(next)
@@ -260,7 +254,6 @@ export function MusicQuizGame({ onEnd }: Props) {
         setIsPlaying(false)
         setHasPlayed(false)
         setPlaysLeft(2)
-        setMascotMood('thinking')
       }
     }, 1400)
   }

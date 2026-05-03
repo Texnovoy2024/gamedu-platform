@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Globe, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft } from 'lucide-react'
 import { playCorrect, playWrong, playCombo, playVictory, playDefeat } from '../../../utils/gameAudio'
-import { AvatarSVG } from '../MiniGamesPage'
 
 // ─── Bayroqlar ma'lumotlar bazasi ─────────────────────────────────────────────
 // flagcdn.com — bepul, hech qanday API key kerak emas
@@ -87,7 +86,6 @@ export function FlagQuizGame({ onEnd }: Props) {
   const [options, setOptions] = useState<string[]>([])
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null)
   const [timeLeft, setTimeLeft] = useState(10)
-  const [mascotMood, setMascotMood] = useState<MascotMood>('idle')
   const [imgLoaded, setImgLoaded] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
   const [emojiVal, setEmojiVal] = useState('')
@@ -105,7 +103,6 @@ export function FlagQuizGame({ onEnd }: Props) {
     setFeedback(null)
     setTimeLeft(10)
     setImgLoaded(false)
-    setMascotMood('thinking')
     setPhase('playing')
   }
 
@@ -151,16 +148,13 @@ export function FlagQuizGame({ onEnd }: Props) {
       playCorrect()
       if (newStreak >= 3) {
         playCombo()
-        setMascotMood('excited')
         setEmojiVal('🔥')
       } else {
-        setMascotMood('happy')
         setEmojiVal('✅')
       }
     } else {
       setStreak(0)
       playWrong()
-      setMascotMood('sad')
       setEmojiVal(ans === null ? '⏰' : '❌')
     }
 
@@ -171,12 +165,11 @@ export function FlagQuizGame({ onEnd }: Props) {
       const next = round + 1
       if (next >= TOTAL_ROUNDS) {
         const finalXp = Math.min(150, score + (isCorrect ? XP_PER_CORRECT : 0))
-        if (finalXp > 75) { playVictory(); setMascotMood('victory') }
-        else { playDefeat(); setMascotMood('sad') }
+        if (finalXp > 75) { playVictory() }
+        else { playDefeat() }
         setPhase('result')
       } else {
         setRound(next)
-        setMascotMood('thinking')
       }
     }, 1200)
   }
