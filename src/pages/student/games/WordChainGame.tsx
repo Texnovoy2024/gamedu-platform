@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Type, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft, Zap } from 'lucide-react'
 import { playCorrect, playWrong, playCombo, playVictory, playDefeat } from '../../../utils/gameAudio'
 import type { MascotMood } from '../MiniGamesPage'
-import { AvatarSVG } from '../MiniGamesPage'
 
 // ─── O'zbek so'zlari banki ────────────────────────────────────────────────────
 // Har bir so'z: { word, category, emoji }
@@ -407,11 +406,6 @@ export function WordChainGame({ onEnd }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Mascot */}
-      <div className="fixed bottom-20 right-3 z-40">
-        <AvatarSVG mood={mascotMood} />
-      </div>
 
       {/* Header */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">

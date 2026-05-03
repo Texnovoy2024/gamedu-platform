@@ -1,9 +1,8 @@
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence, type TargetAndTransition } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Film, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft } from 'lucide-react'
 import { playCorrect, playWrong, playCombo, playVictory, playDefeat } from '../../../utils/gameAudio'
-import type { MascotMood } from '../MiniGamesPage'
 
 // ─── GIF ma'lumotlar bazasi ───────────────────────────────────────────────────
 // Tenor.com dan bepul GIF URLlar — hech qanday API key kerak emas
