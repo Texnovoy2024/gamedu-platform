@@ -64,7 +64,6 @@ function getOptions(correct: typeof FLAGS[0], all: typeof FLAGS): string[] {
 }
 
 type Phase = 'intro' | 'playing' | 'result'
-type MascotMood = 'idle' | 'happy' | 'sad' | 'excited' | 'thinking' | 'victory'
 
 interface Props {
   onEnd: (xp: number) => void
