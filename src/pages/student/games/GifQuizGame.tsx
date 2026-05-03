@@ -4,7 +4,6 @@ import { motion, AnimatePresence, type TargetAndTransition } from 'framer-motion
 import { Film, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft } from 'lucide-react'
 import { playCorrect, playWrong, playCombo, playVictory, playDefeat } from '../../../utils/gameAudio'
 import type { MascotMood } from '../MiniGamesPage'
-import { AvatarSVG } from '../MiniGamesPage'
 
 // ─── GIF ma'lumotlar bazasi ───────────────────────────────────────────────────
 // Tenor.com dan bepul GIF URLlar — hech qanday API key kerak emas
@@ -195,7 +194,10 @@ export function GifQuizGame({ onEnd }: Props) {
   const [emojiVal, setEmojiVal] = useState('')
 
   const startGame = () => {
-    setQuestions(shuffle(GIF_QUESTIONS).slice(0, TOTAL_ROUNDS))
+    setQuestions(shuffle(GIF_QUESTIONS).slice(0, TOTAL_ROUNDS).map(q => ({
+      ...q,
+      options: [...q.options].sort(() => Math.random() - 0.5),
+    })))
     setRound(0)
     setScore(0)
     setCorrect(0)
@@ -239,7 +241,7 @@ export function GifQuizGame({ onEnd }: Props) {
       const speedBonus = Math.round((timeLeft / TIME_PER_ROUND) * 6)
       const newStreak = streak + 1
       const comboBonus = newStreak >= 3 ? 5 : 0
-      setScore(s => s + XP_PER_CORRECT + speedBonus + comboBonus)
+      setScore(s => Math.min(80, s + XP_PER_CORRECT + speedBonus + comboBonus))
       setStreak(newStreak)
       setMaxStreak(ms => Math.max(ms, newStreak))
       setCorrect(c => c + 1)
@@ -258,8 +260,8 @@ export function GifQuizGame({ onEnd }: Props) {
     setTimeout(() => {
       const next = round + 1
       if (next >= TOTAL_ROUNDS) {
-        const finalXp = Math.min(150, score + (isCorrect ? XP_PER_CORRECT : 0))
-        if (finalXp > 70) { playVictory(); setMascotMood('victory') }
+        const finalXp = Math.min(80, score + (isCorrect ? XP_PER_CORRECT : 0))
+        if (finalXp > 40) { playVictory(); setMascotMood('victory') }
         else { playDefeat(); setMascotMood('sad') }
         setPhase('result')
       } else {
@@ -269,7 +271,7 @@ export function GifQuizGame({ onEnd }: Props) {
     }, 1200)
   }
 
-  const earnedXp = Math.min(150, score)
+  const earnedXp = Math.min(80, score)
   const accuracy = TOTAL_ROUNDS > 0 ? Math.round((correct / TOTAL_ROUNDS) * 100) : 0
   const currentQ = questions[round]
   const timerPct = (timeLeft / TIME_PER_ROUND) * 100
@@ -351,7 +353,7 @@ export function GifQuizGame({ onEnd }: Props) {
             {[
               { label: "To'g'ri", value: `${correct}/${TOTAL_ROUNDS}`, color: 'text-emerald-400' },
               { label: 'Aniqlik', value: `${accuracy}%`, color: 'text-pink-400' },
-              { label: 'Max streak', value: String(maxStreak), color: 'text-orange-400' },
+              { label: 'Max seriya', value: String(maxStreak), color: 'text-orange-400' },
             ].map(s => (
               <div key={s.label} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
                 <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
@@ -382,61 +384,53 @@ export function GifQuizGame({ onEnd }: Props) {
       <AnimatePresence>
         {showEmoji && (
           <motion.div
-            initial={{ scale: 0, opacity: 0, y: 0 }}
-            animate={{ scale: [0, 1.5, 1], opacity: 1, y: -30 }}
-            exit={{ opacity: 0, y: -80 }}
-            transition={{ duration: 0.5 }}
-            className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none text-7xl"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.4, 1], opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none text-5xl"
           >
             {emojiVal}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mascot */}
-      <div className="fixed bottom-20 right-3 z-40">
-        <AvatarSVG mood={mascotMood} />
-      </div>
-
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <Film size={14} />
-          <span>{round + 1}/{TOTAL_ROUNDS}</span>
+      {/* Sticky header + timer */}
+      <div className="sticky top-0 z-30 px-4 pt-3 pb-2"
+        style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #0a1a2e 100%)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Film size={14} />
+            <span>{round + 1}/{TOTAL_ROUNDS}</span>
+          </div>
+          <div className="flex items-center gap-1 text-emerald-400 font-bold text-sm">
+            <TrendingUp size={14} /> {score} XP
+          </div>
+          {streak >= 2 && (
+            <div className="text-orange-400 text-sm font-bold">🔥 x{streak}</div>
+          )}
         </div>
-        <div className="flex items-center gap-1 text-emerald-400 font-bold text-sm">
-          <TrendingUp size={14} /> {score} XP
-        </div>
-        {streak >= 2 && (
-          <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.3 }} className="text-orange-400 text-sm font-bold">
-            🔥 x{streak}
-          </motion.div>
-        )}
-      </div>
-
-      {/* Timer */}
-      <div className="px-4 mb-2">
-        <div className="h-2 bg-black/30 rounded-full overflow-hidden border border-white/5">
+        <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">
           <motion.div className={`h-full rounded-full transition-all duration-1000 ${timerColor}`} style={{ width: `${timerPct}%` }} />
         </div>
-        <div className={`text-right text-xs mt-1 font-bold ${timeLeft <= 2 ? 'text-rose-400 animate-pulse' : 'text-slate-500'}`}>
+        <div className={`text-right text-xs mt-0.5 font-bold ${timeLeft <= 2 ? 'text-rose-400 animate-pulse' : 'text-slate-500'}`}>
           {timeLeft}s
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 gap-5">
-        <div className="w-full max-w-xs space-y-5">
-          {/* Animated GIF */}
+      <div className="flex-1 flex flex-col items-center px-4 pt-2 pb-4 gap-3">
+        <div className="w-full max-w-sm space-y-3">
+          {/* Animated GIF — kichikroq */}
           <AnimatePresence mode="wait">
             <motion.div
               key={round}
-              initial={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+              exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.3 }}
               className={`rounded-2xl overflow-hidden border-4 transition-all ${
-                feedback === 'correct' ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.4)]' :
-                feedback === 'wrong' ? 'border-rose-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]' :
+                feedback === 'correct' ? 'border-emerald-400' :
+                feedback === 'wrong'   ? 'border-rose-400'    :
                 'border-white/20'
               }`}
             >
@@ -448,17 +442,17 @@ export function GifQuizGame({ onEnd }: Props) {
             </motion.div>
           </AnimatePresence>
 
-          <p className="text-white font-bold text-lg text-center">Bu nima?</p>
+          <p className="text-white font-bold text-base text-center">Bu nima?</p>
 
           {/* Options */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             {currentQ.options.map((opt, i) => {
               const isSelected = selected === opt
               const isCorrectOpt = opt === currentQ.correct
               const colors = ['from-blue-600 to-blue-700', 'from-rose-600 to-rose-700', 'from-yellow-600 to-yellow-700', 'from-emerald-600 to-emerald-700']
               let cls = `bg-gradient-to-r ${colors[i]} hover:brightness-110`
               if (feedback) {
-                if (isCorrectOpt) cls = 'bg-emerald-500 ring-2 ring-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
+                if (isCorrectOpt) cls = 'bg-emerald-500 ring-2 ring-emerald-300'
                 else if (isSelected) cls = 'bg-rose-700 opacity-70'
                 else cls = `bg-gradient-to-r ${colors[i]} opacity-30`
               }

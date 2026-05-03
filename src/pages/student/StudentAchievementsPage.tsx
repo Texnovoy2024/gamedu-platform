@@ -43,7 +43,7 @@ const catConfig: Record<AchievementCategory | 'all', { label: string; Icon: Reac
   boshlangich: { label: "Boshlang'ich", Icon: Sprout },
   faollik:     { label: 'Faollik',      Icon: ClipboardList },
   mahorat:     { label: 'Mahorat',      Icon: Zap },
-  streak:      { label: 'Streak',       Icon: Flame },
+  streak:      { label: 'Seriya',       Icon: Flame },
   maxsus:      { label: 'Maxsus',       Icon: Crown },
 }
 const categories = Object.keys(catConfig) as (AchievementCategory | 'all')[]
@@ -67,26 +67,26 @@ export function StudentAchievementsPage() {
 
       const list: Achievement[] = [
         { id: 'first-step', title: 'Birinchi qadam',     description: 'Birinchi topshiriqni yakunladingiz.',   icon: '', category: 'boshlangich', rarity: 'oddiy',     unlocked: progress.length >= 1 },
-        { id: 'xp-100',     title: 'XP boshlanishi',     description: '100 XP to\'pladingiz.',                 icon: '', category: 'boshlangich', rarity: 'oddiy',     unlocked: stats.totalXp >= 100 },
-        { id: 'xp-500',     title: 'XP yo\'li',          description: '500 XP to\'pladingiz.',                 icon: '', category: 'boshlangich', rarity: 'oddiy',     unlocked: stats.totalXp >= 500 },
+        { id: 'xp-100',     title: 'XP boshlanishi',     description: '500 XP to\'pladingiz.',                 icon: '', category: 'boshlangich', rarity: 'oddiy',     unlocked: stats.totalXp >= 500 },
+        { id: 'xp-500',     title: 'XP yo\'li',          description: '2 500 XP to\'pladingiz.',               icon: '', category: 'boshlangich', rarity: 'oddiy',     unlocked: stats.totalXp >= 2500 },
         { id: 'level-2',    title: 'O\'sish boshlandi',  description: '2-darajaga chiqdingiz.',                icon: '', category: 'boshlangich', rarity: 'oddiy',     unlocked: stats.level >= 2 },
-        { id: 'tasks-5',    title: 'Faol o\'quvchi',     description: '5 ta topshiriq yakunladingiz.',         icon: '', category: 'faollik',     rarity: 'oddiy',     unlocked: progress.length >= 5 },
-        { id: 'tasks-10',   title: 'Marafonchi',         description: '10 ta topshiriq yakunladingiz.',        icon: '', category: 'faollik',     rarity: 'noyob',     unlocked: progress.length >= 10 },
-        { id: 'tasks-25',   title: 'Charchamaydigan',    description: '25 ta topshiriq yakunladingiz.',        icon: '', category: 'faollik',     rarity: 'noyob',     unlocked: progress.length >= 25 },
-        { id: 'tasks-50',   title: 'Topshiriq ustasi',   description: '50 ta topshiriq yakunladingiz.',        icon: '', category: 'faollik',     rarity: 'epik',      unlocked: progress.length >= 50 },
-        { id: 'xp-1500',    title: 'Barqaror o\'sish',   description: '1500 XP to\'pladingiz.',                icon: '', category: 'faollik',     rarity: 'noyob',     unlocked: stats.totalXp >= 1500 },
-        { id: 'xp-5000',    title: 'XP Qahramoni',       description: '5000 XP to\'pladingiz.',                icon: '', category: 'faollik',     rarity: 'epik',      unlocked: stats.totalXp >= 5000 },
+        { id: 'tasks-5',    title: 'Faol o\'quvchi',     description: '15 ta topshiriq yakunladingiz.',        icon: '', category: 'faollik',     rarity: 'oddiy',     unlocked: progress.length >= 15 },
+        { id: 'tasks-10',   title: 'Marafonchi',         description: '30 ta topshiriq yakunladingiz.',        icon: '', category: 'faollik',     rarity: 'noyob',     unlocked: progress.length >= 30 },
+        { id: 'tasks-25',   title: 'Charchamaydigan',    description: '75 ta topshiriq yakunladingiz.',        icon: '', category: 'faollik',     rarity: 'noyob',     unlocked: progress.length >= 75 },
+        { id: 'tasks-50',   title: 'Topshiriq ustasi',   description: '150 ta topshiriq yakunladingiz.',       icon: '', category: 'faollik',     rarity: 'epik',      unlocked: progress.length >= 150 },
+        { id: 'xp-1500',    title: 'Barqaror o\'sish',   description: '8 000 XP to\'pladingiz.',               icon: '', category: 'faollik',     rarity: 'noyob',     unlocked: stats.totalXp >= 8000 },
+        { id: 'xp-5000',    title: 'XP Qahramoni',       description: '25 000 XP to\'pladingiz.',              icon: '', category: 'faollik',     rarity: 'epik',      unlocked: stats.totalXp >= 25000 },
         { id: 'level-5',    title: 'Daraja ustasi',      description: '5-darajaga chiqdingiz.',                icon: '', category: 'mahorat',     rarity: 'noyob',     unlocked: stats.level >= 5 },
         { id: 'level-10',   title: 'Ekspert',            description: '10-darajaga chiqdingiz.',               icon: '', category: 'mahorat',     rarity: 'epik',      unlocked: stats.level >= 10 },
         { id: 'level-20',   title: 'Grandmaster',        description: '20-darajaga chiqdingiz.',               icon: '', category: 'mahorat',     rarity: 'afsonaviy', unlocked: stats.level >= 20 },
-        { id: 'coins-100',  title: 'Tanga yig\'uvchi',   description: '100 tanga to\'pladingiz.',              icon: '', category: 'mahorat',     rarity: 'oddiy',     unlocked: coins.totalEarned >= 100 },
-        { id: 'coins-500',  title: 'Boylik',             description: '500 tanga to\'pladingiz.',              icon: '', category: 'mahorat',     rarity: 'noyob',     unlocked: coins.totalEarned >= 500 },
+        { id: 'coins-100',  title: 'Tanga yig\'uvchi',   description: '500 tanga to\'pladingiz.',              icon: '', category: 'mahorat',     rarity: 'oddiy',     unlocked: coins.totalEarned >= 500 },
+        { id: 'coins-500',  title: 'Boylik',             description: '2 000 tanga to\'pladingiz.',            icon: '', category: 'mahorat',     rarity: 'noyob',     unlocked: coins.totalEarned >= 2000 },
         { id: 'streak-3',   title: 'Ketma-ket 3 kun',    description: '3 kun ketma-ket kirdingiz.',            icon: '', category: 'streak',      rarity: 'oddiy',     unlocked: streak.longestStreak >= 3 },
         { id: 'streak-7',   title: 'Haftalik chempion',  description: '7 kun ketma-ket kirdingiz.',            icon: '', category: 'streak',      rarity: 'noyob',     unlocked: streak.longestStreak >= 7 },
         { id: 'streak-14',  title: '2 haftalik jasorat', description: '14 kun ketma-ket kirdingiz.',           icon: '', category: 'streak',      rarity: 'epik',      unlocked: streak.longestStreak >= 14 },
         { id: 'streak-30',  title: 'Oylik afsonaviy',    description: '30 kun ketma-ket kirdingiz.',           icon: '', category: 'streak',      rarity: 'afsonaviy', unlocked: streak.longestStreak >= 30 },
-        { id: 'xp-10000',   title: 'Afsonaviy o\'quvchi',description: '10 000 XP to\'pladingiz!',             icon: '', category: 'maxsus',      rarity: 'afsonaviy', unlocked: stats.totalXp >= 10000 },
-        { id: 'tasks-100',  title: 'Yuz topshiriq',      description: '100 ta topshiriq yakunladingiz.',       icon: '', category: 'maxsus',      rarity: 'afsonaviy', unlocked: progress.length >= 100 },
+        { id: 'xp-10000',   title: 'Afsonaviy o\'quvchi',description: '80 000 XP to\'pladingiz!',             icon: '', category: 'maxsus',      rarity: 'afsonaviy', unlocked: stats.totalXp >= 80000 },
+        { id: 'tasks-100',  title: 'Yuz topshiriq',      description: '300 ta topshiriq yakunladingiz.',       icon: '', category: 'maxsus',      rarity: 'afsonaviy', unlocked: progress.length >= 300 },
       ]
       setAchievements(list)
     }
@@ -225,7 +225,11 @@ export function StudentAchievementsPage() {
       </div>
 
       {celebrateAch && (
-        <AchievementUnlockModal achievements={[celebrateAch]} onClose={() => setCelebrateAch(null)} />
+        <AchievementUnlockModal
+          key={celebrateAch.id + Date.now()}
+          achievements={[celebrateAch]}
+          onClose={() => setCelebrateAch(null)}
+        />
       )}
     </div>
   )

@@ -387,16 +387,24 @@ export function StudentTaskDetailPage() {
   // ─── GAME COMPONENTS (spin-wheel, mystery-box, anagram) ─────────────────────
   const handleGameFinish = async (correctCount: number, totalCount: number) => {
     if (!task || !currentId) return
+    // spin-wheel / mystery-box / anagram uchun questionResults ni to'ldiramiz
+    // shunda result sahifasida to'g'ri natija ko'rinadi
+    const syntheticResults: QuestionResult[] = Array.from({ length: totalCount }, (_, i) => ({
+      correct: i < correctCount,
+      timeTaken: 0,
+      speedBonus: 0,
+    }))
+    setQuestionResults(syntheticResults)
+
     const result = await awardXpForTask(currentId, task, correctCount, totalCount)
     if (!result) { setPhase('result'); return }
     setEarnedXp(result.earnedXp)
     setEarnedCoins(result.earnedCoins)
     if (result.leveledUp) {
       setNewLevel(result.newStats.level)
-      setShowLevelUp(true)
+      setTimeout(() => setShowLevelUp(true), 800)
     }
     setPhase('result')
-    if (result.leveledUp) setTimeout(() => setShowLevelUp(true), 800)
   }
 
   if (phase === 'playing' && task.type === 'spin-wheel') {

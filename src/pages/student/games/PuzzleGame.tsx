@@ -179,7 +179,7 @@ export function PuzzleGame({ onEnd }: Props) {
       const timeBonus = Math.max(0, 15 - Math.floor(timeTaken / 4))
       const moveBonus = Math.max(0, 10 - Math.floor(moves / 3))
       const gained = XP_PER_PUZZLE + timeBonus + moveBonus
-      setScore(s => s + gained)
+      setScore(s => Math.min(200, s + gained))
       setSolved(s => s + 1)
       playCorrect()
       setMascotMood('excited')
@@ -196,8 +196,8 @@ export function PuzzleGame({ onEnd }: Props) {
     setTimeout(() => {
       const next = puzzleIndex + 1
       if (next >= TOTAL_PUZZLES) {
-        const finalXp = Math.min(120, score + (success ? XP_PER_PUZZLE : 0))
-        if (finalXp > 60) { playVictory(); setMascotMood('victory') }
+        const finalXp = Math.min(200, score + (success ? XP_PER_PUZZLE : 0))
+        if (finalXp > 100) { playVictory(); setMascotMood('victory') }
         else { playDefeat(); setMascotMood('sad') }
         setPhase('result')
       } else {
@@ -210,7 +210,7 @@ export function PuzzleGame({ onEnd }: Props) {
     }, 1500)
   }
 
-  const earnedXp = Math.min(120, score)
+  const earnedXp = Math.min(200, score)
   const currentPuzzle = puzzles[puzzleIndex]
 
   // ── INTRO ──────────────────────────────────────────────────────────────────

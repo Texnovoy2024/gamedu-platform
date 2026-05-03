@@ -57,9 +57,9 @@ export function StudentDashboard() {
   const title      = getTitleForLevel(stats.level)
   const avatarKey  = getAvatarForLevel(stats.level)
   const AvatarIcon = AVATAR_ICON_MAP[avatarKey] ?? Star
-  const nextLevelXp = xpForLevel(stats.level)
-  const prevLevelXp = xpForLevel(Math.max(stats.level - 1, 0))
-  const xpProgress = Math.round(((stats.totalXp - prevLevelXp) / (nextLevelXp - prevLevelXp)) * 100)
+  const nextLevelXp = xpForLevel(stats.level + 1)
+  const prevLevelXp = xpForLevel(stats.level)
+  const xpProgress = Math.round(((stats.totalXp - prevLevelXp) / Math.max(1, nextLevelXp - prevLevelXp)) * 100)
   const xpToNext = nextLevelXp - stats.totalXp
   const completedQuests = quests.filter(q => q.completed).length
 
@@ -91,8 +91,9 @@ export function StudentDashboard() {
           </div>
           <XpBar currentXp={stats.totalXp} level={stats.level} />
           <div className="text-xs text-slate-500">
-            Keyingi darajaga <span className="text-primary-300 font-semibold">{xpToNext} XP</span> kerak
-            &nbsp;·&nbsp;{xpProgress}% tayyor
+            Keyingi darajaga <span className="text-primary-300 font-semibold">{xpToNext} XP</span> qoldi
+            &nbsp;·&nbsp;
+            <span className="text-emerald-400 font-semibold">{xpProgress}%</span> bajarildi
           </div>
         </motion.div>
 
@@ -102,7 +103,7 @@ export function StudentDashboard() {
         >
           <div className="flex items-center gap-2 text-orange-400">
             <Flame size={16} />
-            <span className="text-xs font-semibold">Streak</span>
+            <span className="text-xs font-semibold">Seriya</span>
           </div>
           <div className="text-3xl font-bold text-orange-300">{streak.currentStreak}</div>
           <div className="text-xs text-slate-500">
@@ -204,7 +205,7 @@ export function StudentDashboard() {
         </div>
       </motion.div>
 
-      {/* Streak Calendar */}
+      {/* Seriya taqvimi */}
       <motion.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.56 }}
         className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4"

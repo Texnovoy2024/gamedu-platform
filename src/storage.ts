@@ -66,7 +66,25 @@ export async function upsertUser(user: User): Promise<void> {
 }
 
 export async function deleteUser(id: string): Promise<void> {
+  // 1. Foydalanuvchi hisobini o'chirish
   await remove(ref(db, `users/${id}`))
+
+  // 2. Progress yozuvlarini o'chirish (bu studentga tegishli barcha XP/topshiriq tarixi)
+  const progressSnap = await get(ref(db, 'progress'))
+  if (progressSnap.exists()) {
+    const allProgress = progressSnap.val() as Record<string, { studentId: string }>
+    const toDelete = Object.keys(allProgress).filter(key => allProgress[key].studentId === id)
+    await Promise.all(toDelete.map(key => remove(ref(db, `progress/${key}`))))
+  }
+
+  // 3. Qolgan barcha bog'liq ma'lumotlarni o'chirish
+  await Promise.all([
+    remove(ref(db, `streaks/${id}`)),
+    remove(ref(db, `coins/${id}`)),
+    remove(ref(db, `dailyQuests/${id}`)),
+    remove(ref(db, `achievementsSeen/${id}`)),
+    remove(ref(db, `dailyAutoDone/${id}`)),
+  ])
 }
 
 export async function findUserByCredentials(id: string, password: string): Promise<User | undefined> {
@@ -86,8 +104,13 @@ export async function getTasks(): Promise<Task[]> {
   return objToArray<Task>(snap.val())
 }
 
+// Firebase undefined qiymatlarni qabul qilmaydi — ularni olib tashlaymiz
+function removeUndefined<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj))
+}
+
 export async function upsertTask(task: Task): Promise<void> {
-  await set(ref(db, `tasks/${task.id}`), task)
+  await set(ref(db, `tasks/${task.id}`), removeUndefined(task))
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -133,11 +156,51 @@ export async function calculateStudentStats(studentId: string): Promise<StudentS
 
 export function calculateLevel(xp: number): number {
   if (xp <= 0) return 1
-  return Math.floor(Math.sqrt(xp / 120)) + 1
+  // Eksponensial o'sish — har daraja oldinginikidan ~1.6x qiyinroq
+  for (let lvl = 1; lvl <= 30; lvl++) {
+    if (xp < xpForLevel(lvl)) return lvl
+  }
+  return 30
 }
 
 export function xpForLevel(level: number): number {
-  return (level + 1) ** 2 * 120
+  // 1-daraja: 0 XP dan boshlanadi
+  // Har daraja uchun kerakli JAMI XP (kumulativ)
+  const thresholds = [
+    0,        // 1-daraja
+    500,      // 2-daraja
+    1_200,    // 3-daraja
+    2_500,    // 4-daraja
+    4_500,    // 5-daraja
+    7_500,    // 6-daraja
+    12_000,   // 7-daraja
+    18_000,   // 8-daraja
+    26_000,   // 9-daraja
+    36_000,   // 10-daraja
+    50_000,   // 11-daraja
+    68_000,   // 12-daraja
+    90_000,   // 13-daraja
+    118_000,  // 14-daraja
+    152_000,  // 15-daraja
+    195_000,  // 16-daraja
+    248_000,  // 17-daraja
+    312_000,  // 18-daraja
+    390_000,  // 19-daraja
+    485_000,  // 20-daraja
+    600_000,  // 21-daraja
+    740_000,  // 22-daraja
+    910_000,  // 23-daraja
+    1_110_000,// 24-daraja
+    1_350_000,// 25-daraja
+    1_640_000,// 26-daraja
+    1_990_000,// 27-daraja
+    2_400_000,// 28-daraja
+    2_900_000,// 29-daraja
+    3_500_000,// 30-daraja (Afsonaviy)
+  ]
+  if (level <= 1) return 0
+  if (level > 30) return thresholds[29]
+  return thresholds[level - 1]
 }
 
 export function getDifficultyBonus(difficulty: Difficulty): number {
@@ -309,7 +372,7 @@ const QUEST_TEMPLATES: Omit<DailyQuest, 'currentCount' | 'completed'>[] = [
   {
     id: 'dq_perfect',
     title: "Mukammal natija",
-    description: "Bitta topshiriqda barcha savollarni to'g'ri javoblang",
+    description: "Bugungi 3 ta vazifani (topshiriq, XP, kirish) bajaring",
     icon: '🎯',
     targetCount: 1,
     rewardXp: 150,
@@ -384,6 +447,38 @@ export async function updateDailyQuestProgress(
     }
     return { ...q, currentCount: newCount, completed: nowCompleted }
   }))
+
+  // ── "Mukammal natija" — qolgan 3 ta vazifa bajarilsa avtomatik beriladi ──
+  const OTHER_TYPES: DailyQuest['type'][] = ['complete_tasks', 'earn_xp', 'login']
+  const perfectQuest = updated.find(q => q.type === 'perfect_score')
+  if (perfectQuest && !perfectQuest.completed) {
+    const allOthersDone = OTHER_TYPES.every(t => {
+      const q = updated.find(q => q.type === t)
+      return q ? q.completed : true
+    })
+    if (allOthersDone) {
+      // Mukammal natijani bajarilgan deb belgilaymiz
+      const idx = updated.findIndex(q => q.type === 'perfect_score')
+      if (idx >= 0) {
+        updated[idx] = { ...updated[idx], currentCount: updated[idx].targetCount, completed: true }
+        await addCoins(userId, updated[idx].rewardCoins)
+        const bonusId = `quest_${updated[idx].id}_${userId}_${todayStr()}`
+        const existSnap = await get(ref(db, `progress/${bonusId}`))
+        if (!existSnap.exists()) {
+          const bonusRecord: StudentTaskProgress = {
+            id: bonusId,
+            studentId: userId,
+            taskId: `quest_${updated[idx].id}_${todayStr()}`,
+            status: 'completed',
+            earnedXp: updated[idx].rewardXp,
+            completedAt: new Date().toISOString(),
+          }
+          await set(ref(db, `progress/${bonusId}`), bonusRecord)
+        }
+        changed = true
+      }
+    }
+  }
 
   if (changed || updated.some((q, i) => q.currentCount !== quests[i].currentCount)) {
     await set(ref(db, `dailyQuests/${userId}`), { date: todayStr(), quests: updated })
@@ -537,26 +632,26 @@ export async function checkNewAchievements(userId: string): Promise<NewAchieveme
 
   const ALL_ACHIEVEMENTS: (NewAchievement & { unlocked: boolean })[] = [
     { id: 'first-step', title: 'Birinchi qadam',      description: 'Birinchi topshiriqni yakunladingiz.',   rarity: 'oddiy',     category: 'boshlangich', unlocked: progress.length >= 1 },
-    { id: 'xp-100',     title: 'XP boshlanishi',      description: '100 XP to\'pladingiz.',                 rarity: 'oddiy',     category: 'boshlangich', unlocked: stats.totalXp >= 100 },
-    { id: 'xp-500',     title: 'XP yo\'li',           description: '500 XP to\'pladingiz.',                 rarity: 'oddiy',     category: 'boshlangich', unlocked: stats.totalXp >= 500 },
+    { id: 'xp-100',     title: 'XP boshlanishi',      description: '500 XP to\'pladingiz.',                 rarity: 'oddiy',     category: 'boshlangich', unlocked: stats.totalXp >= 500 },
+    { id: 'xp-500',     title: 'XP yo\'li',           description: '2 500 XP to\'pladingiz.',               rarity: 'oddiy',     category: 'boshlangich', unlocked: stats.totalXp >= 2500 },
     { id: 'level-2',    title: 'O\'sish boshlandi',   description: '2-darajaga chiqdingiz.',                rarity: 'oddiy',     category: 'boshlangich', unlocked: stats.level >= 2 },
-    { id: 'tasks-5',    title: 'Faol o\'quvchi',      description: '5 ta topshiriq yakunladingiz.',         rarity: 'oddiy',     category: 'faollik',     unlocked: progress.length >= 5 },
-    { id: 'tasks-10',   title: 'Marafonchi',          description: '10 ta topshiriq yakunladingiz.',        rarity: 'noyob',     category: 'faollik',     unlocked: progress.length >= 10 },
-    { id: 'tasks-25',   title: 'Charchamaydigan',     description: '25 ta topshiriq yakunladingiz.',        rarity: 'noyob',     category: 'faollik',     unlocked: progress.length >= 25 },
-    { id: 'tasks-50',   title: 'Topshiriq ustasi',    description: '50 ta topshiriq yakunladingiz.',        rarity: 'epik',      category: 'faollik',     unlocked: progress.length >= 50 },
-    { id: 'xp-1500',    title: 'Barqaror o\'sish',    description: '1500 XP to\'pladingiz.',                rarity: 'noyob',     category: 'faollik',     unlocked: stats.totalXp >= 1500 },
-    { id: 'xp-5000',    title: 'XP Qahramoni',        description: '5000 XP to\'pladingiz.',                rarity: 'epik',      category: 'faollik',     unlocked: stats.totalXp >= 5000 },
+    { id: 'tasks-5',    title: 'Faol o\'quvchi',      description: '15 ta topshiriq yakunladingiz.',        rarity: 'oddiy',     category: 'faollik',     unlocked: progress.length >= 15 },
+    { id: 'tasks-10',   title: 'Marafonchi',          description: '30 ta topshiriq yakunladingiz.',        rarity: 'noyob',     category: 'faollik',     unlocked: progress.length >= 30 },
+    { id: 'tasks-25',   title: 'Charchamaydigan',     description: '75 ta topshiriq yakunladingiz.',        rarity: 'noyob',     category: 'faollik',     unlocked: progress.length >= 75 },
+    { id: 'tasks-50',   title: 'Topshiriq ustasi',    description: '150 ta topshiriq yakunladingiz.',       rarity: 'epik',      category: 'faollik',     unlocked: progress.length >= 150 },
+    { id: 'xp-1500',    title: 'Barqaror o\'sish',    description: '8 000 XP to\'pladingiz.',               rarity: 'noyob',     category: 'faollik',     unlocked: stats.totalXp >= 8000 },
+    { id: 'xp-5000',    title: 'XP Qahramoni',        description: '25 000 XP to\'pladingiz.',              rarity: 'epik',      category: 'faollik',     unlocked: stats.totalXp >= 25000 },
     { id: 'level-5',    title: 'Daraja ustasi',       description: '5-darajaga chiqdingiz.',                rarity: 'noyob',     category: 'mahorat',     unlocked: stats.level >= 5 },
     { id: 'level-10',   title: 'Ekspert',             description: '10-darajaga chiqdingiz.',               rarity: 'epik',      category: 'mahorat',     unlocked: stats.level >= 10 },
     { id: 'level-20',   title: 'Grandmaster',         description: '20-darajaga chiqdingiz.',               rarity: 'afsonaviy', category: 'mahorat',     unlocked: stats.level >= 20 },
-    { id: 'coins-100',  title: 'Tanga yig\'uvchi',    description: '100 tanga to\'pladingiz.',              rarity: 'oddiy',     category: 'mahorat',     unlocked: coins.totalEarned >= 100 },
-    { id: 'coins-500',  title: 'Boylik',              description: '500 tanga to\'pladingiz.',              rarity: 'noyob',     category: 'mahorat',     unlocked: coins.totalEarned >= 500 },
+    { id: 'coins-100',  title: 'Tanga yig\'uvchi',    description: '500 tanga to\'pladingiz.',              rarity: 'oddiy',     category: 'mahorat',     unlocked: coins.totalEarned >= 500 },
+    { id: 'coins-500',  title: 'Boylik',              description: '2 000 tanga to\'pladingiz.',            rarity: 'noyob',     category: 'mahorat',     unlocked: coins.totalEarned >= 2000 },
     { id: 'streak-3',   title: 'Ketma-ket 3 kun',     description: '3 kun ketma-ket kirdingiz.',            rarity: 'oddiy',     category: 'streak',      unlocked: streak.longestStreak >= 3 },
     { id: 'streak-7',   title: 'Haftalik chempion',   description: '7 kun ketma-ket kirdingiz.',            rarity: 'noyob',     category: 'streak',      unlocked: streak.longestStreak >= 7 },
     { id: 'streak-14',  title: '2 haftalik jasorat',  description: '14 kun ketma-ket kirdingiz.',           rarity: 'epik',      category: 'streak',      unlocked: streak.longestStreak >= 14 },
     { id: 'streak-30',  title: 'Oylik afsonaviy',     description: '30 kun ketma-ket kirdingiz.',           rarity: 'afsonaviy', category: 'streak',      unlocked: streak.longestStreak >= 30 },
-    { id: 'xp-10000',   title: 'Afsonaviy o\'quvchi', description: '10 000 XP to\'pladingiz!',             rarity: 'afsonaviy', category: 'maxsus',      unlocked: stats.totalXp >= 10000 },
-    { id: 'tasks-100',  title: 'Yuz topshiriq',       description: '100 ta topshiriq yakunladingiz.',       rarity: 'afsonaviy', category: 'maxsus',      unlocked: progress.length >= 100 },
+    { id: 'xp-10000',   title: 'Afsonaviy o\'quvchi', description: '80 000 XP to\'pladingiz!',             rarity: 'afsonaviy', category: 'maxsus',      unlocked: stats.totalXp >= 80000 },
+    { id: 'tasks-100',  title: 'Yuz topshiriq',       description: '300 ta topshiriq yakunladingiz.',       rarity: 'afsonaviy', category: 'maxsus',      unlocked: progress.length >= 300 },
   ]
 
   const newlyUnlocked: NewAchievement[] = []

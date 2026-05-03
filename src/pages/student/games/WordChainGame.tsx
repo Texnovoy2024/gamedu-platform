@@ -236,7 +236,7 @@ export function WordChainGame({ onEnd }: Props) {
       const speedBonus = Math.round((timeLeft / TIME_PER_WORD) * 5)
       const comboBonus = newStreak >= 3 ? 5 : 0
       const gained = XP_PER_WORD + speedBonus + comboBonus
-      setScore(s => s + gained)
+      setScore(s => Math.min(250, s + gained))
       setStreak(newStreak)
       setMaxStreak(ms => Math.max(ms, newStreak))
       setChain(prev => [...prev, word])
@@ -267,13 +267,13 @@ export function WordChainGame({ onEnd }: Props) {
   }
 
   const finishGame = () => {
-    const finalXp = Math.min(150, score)
-    if (finalXp > 60) { playVictory(); setMascotMood('victory') }
+    const finalXp = Math.min(250, score)
+    if (finalXp > 120) { playVictory(); setMascotMood('victory') }
     else { playDefeat(); setMascotMood('sad') }
     setPhase('result')
   }
 
-  const earnedXp = Math.min(150, score)
+  const earnedXp = Math.min(250, score)
   const timerPct = (timeLeft / TIME_PER_WORD) * 100
   const timerColor = timeLeft > 8 ? 'bg-emerald-500' : timeLeft > 4 ? 'bg-yellow-500' : 'bg-rose-500'
 
@@ -366,7 +366,7 @@ export function WordChainGame({ onEnd }: Props) {
             {[
               { label: "So'zlar", value: String(chain.length), color: 'text-cyan-400' },
               { label: 'Uzunlik', value: String(chain.length), color: 'text-blue-400' },
-              { label: 'Max streak', value: String(maxStreak), color: 'text-orange-400' },
+              { label: 'Max seriya', value: String(maxStreak), color: 'text-orange-400' },
             ].map(s => (
               <div key={s.label} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
                 <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>

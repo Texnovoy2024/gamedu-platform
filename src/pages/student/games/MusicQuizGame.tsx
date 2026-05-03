@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Music, Play, Square, ChevronRight, CheckCircle2, TrendingUp, Coins, ArrowLeft } from 'lucide-react'
 import { playCorrect, playWrong, playVictory, playDefeat } from '../../../utils/gameAudio'
 import type { MascotMood } from '../MiniGamesPage'
-import { AvatarSVG } from '../MiniGamesPage'
 
 // ─── Qo'shiqlar — Web Audio API bilan melodiya ────────────────────────────────
 // Har bir qo'shiq uchun nota ketma-ketligi (Hz) va davomiyligi (ms)
@@ -178,7 +177,10 @@ export function MusicQuizGame({ onEnd }: Props) {
   const stopMelodyRef = useRef<(() => void) | null>(null)
 
   const startGame = () => {
-    const q = shuffle(SONGS).slice(0, TOTAL_ROUNDS)
+    const q = shuffle(SONGS).slice(0, TOTAL_ROUNDS).map(song => ({
+      ...song,
+      options: [...song.options].sort(() => Math.random() - 0.5),
+    }))
     setQuestions(q)
     setRound(0)
     setScore(0)
@@ -227,7 +229,7 @@ export function MusicQuizGame({ onEnd }: Props) {
     if (isCorrect) {
       const newStreak = streak + 1
       const comboBonus = newStreak >= 3 ? 5 : 0
-      setScore(s => s + XP_PER_CORRECT + comboBonus)
+      setScore(s => Math.min(180, s + XP_PER_CORRECT + comboBonus))
       setStreak(newStreak)
       setMaxStreak(ms => Math.max(ms, newStreak))
       setCorrect(c => c + 1)
@@ -247,8 +249,8 @@ export function MusicQuizGame({ onEnd }: Props) {
     setTimeout(() => {
       const next = round + 1
       if (next >= TOTAL_ROUNDS) {
-        const finalXp = Math.min(150, score + (isCorrect ? XP_PER_CORRECT : 0))
-        if (finalXp > 80) { playVictory(); setMascotMood('victory') }
+        const finalXp = Math.min(180, score + (isCorrect ? XP_PER_CORRECT : 0))
+        if (finalXp > 90) { playVictory(); setMascotMood('victory') }
         else { playDefeat(); setMascotMood('sad') }
         setPhase('result')
       } else {
@@ -263,7 +265,7 @@ export function MusicQuizGame({ onEnd }: Props) {
     }, 1400)
   }
 
-  const earnedXp = Math.min(150, score)
+  const earnedXp = Math.min(180, score)
   const accuracy = TOTAL_ROUNDS > 0 ? Math.round((correct / TOTAL_ROUNDS) * 100) : 0
   const currentQ = questions[round]
 
@@ -343,7 +345,7 @@ export function MusicQuizGame({ onEnd }: Props) {
             {[
               { label: "To'g'ri", value: `${correct}/${TOTAL_ROUNDS}`, color: 'text-emerald-400' },
               { label: 'Aniqlik', value: `${accuracy}%`, color: 'text-purple-400' },
-              { label: 'Max streak', value: String(maxStreak), color: 'text-orange-400' },
+              { label: 'Max seriya', value: String(maxStreak), color: 'text-orange-400' },
             ].map(s => (
               <div key={s.label} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
                 <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
@@ -374,44 +376,41 @@ export function MusicQuizGame({ onEnd }: Props) {
       <AnimatePresence>
         {showEmoji && (
           <motion.div
-            initial={{ scale: 0, opacity: 0, y: 0 }}
-            animate={{ scale: [0, 1.5, 1], opacity: 1, y: -30 }}
-            exit={{ opacity: 0, y: -80 }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.5, 1], opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none text-6xl"
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none text-5xl"
           >
             {emojiVal}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mascot */}
-      <div className="fixed bottom-20 right-3 z-40">
-        <AvatarSVG mood={mascotMood} />
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-30 px-4 pt-4 pb-2" style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 100%)' }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Music size={14} />
+            <span>{round + 1}/{TOTAL_ROUNDS}</span>
+          </div>
+          <div className="flex items-center gap-1 text-emerald-400 font-bold text-sm">
+            <TrendingUp size={14} /> {score} XP
+          </div>
+          {streak >= 2 && (
+            <div className="text-orange-400 text-sm font-bold">🔥 x{streak}</div>
+          )}
+        </div>
       </div>
 
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <Music size={14} />
-          <span>{round + 1}/{TOTAL_ROUNDS}</span>
-        </div>
-        <div className="flex items-center gap-1 text-emerald-400 font-bold text-sm">
-          <TrendingUp size={14} /> {score} XP
-        </div>
-        {streak >= 2 && (
-          <div className="text-orange-400 text-sm font-bold">🔥 x{streak}</div>
-        )}
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center px-4 gap-6">
+      <div className="flex-1 flex flex-col items-center pt-2 pb-4 px-4 gap-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={round}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="w-full max-w-xs space-y-5"
+            className="w-full max-w-sm space-y-5"
           >
             {/* Music player card */}
             <div className="rounded-2xl border border-purple-500/30 bg-white/5 backdrop-blur-sm p-6 text-center space-y-4">
@@ -468,7 +467,7 @@ export function MusicQuizGame({ onEnd }: Props) {
             </div>
 
             {/* Options */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               {currentQ.options.map((opt, i) => {
                 const isSelected = selected === opt
                 const isCorrectOpt = opt === currentQ.name

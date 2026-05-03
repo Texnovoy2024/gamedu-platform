@@ -15,8 +15,8 @@ import {
   Sparkles,
   TrendingUp,
   XCircle,
-  ChevronLeft,
 } from 'lucide-react'
+import { Pagination } from '../../components/Pagination'
 import {
   getCurrentUserId,
   getTasks,
@@ -406,24 +406,40 @@ export function StudentTasksPage() {
                 </div>
 
                 {/* Action */}
-                <Link
-                  to={`/student/tasks/${task.id}`}
-                  className={`mt-auto flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    completed
-                      ? 'bg-emerald-900/50 text-emerald-300 cursor-default'
-                      : overdue
-                      ? 'bg-rose-900/50 text-rose-300 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:brightness-110 text-white shadow-md'
-                  }`}
-                >
-                  {completed ? (
-                    <><CheckCircle2 size={15} /> Bajarilgan</>
-                  ) : overdue ? (
-                    <>Muddati o'tgan</>
-                  ) : (
-                    <>Boshlash <ChevronRight size={15} /></>
-                  )}
-                </Link>
+                <div className="mt-auto space-y-2">
+                  {completed && (() => {
+                    const prog = progress.find(p => p.studentId === currentId && p.taskId === task.id && p.status === 'completed')
+                    if (!prog) return null
+                    const maxXp = task.xp + (task.bonusXp ?? 0)
+                    const pct = Math.min(100, Math.round((prog.earnedXp / maxXp) * 100))
+                    return (
+                      <div className="rounded-xl bg-slate-800/60 px-3 py-2 flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Natija:</span>
+                        <span className={`font-bold ${pct === 100 ? 'text-yellow-400' : pct >= 60 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          +{prog.earnedXp} XP ({pct}%)
+                        </span>
+                      </div>
+                    )
+                  })()}
+                  <Link
+                    to={`/student/tasks/${task.id}`}
+                    className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      completed
+                        ? 'bg-emerald-900/50 text-emerald-300 cursor-default pointer-events-none'
+                        : overdue
+                        ? 'bg-rose-900/50 text-rose-300 cursor-not-allowed pointer-events-none'
+                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:brightness-110 text-white shadow-md'
+                    }`}
+                  >
+                    {completed ? (
+                      <><CheckCircle2 size={15} /> Bajarilgan</>
+                    ) : overdue ? (
+                      <>Muddati o'tgan</>
+                    ) : (
+                      <>Boshlash <ChevronRight size={15} /></>
+                    )}
+                  </Link>
+                </div>
               </motion.div>
             )
           })}
@@ -431,41 +447,7 @@ export function StudentTasksPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-            >
-              <ChevronLeft size={16} />
-              Oldingi
-            </button>
-
-            <div className="flex items-center gap-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 rounded-xl text-sm font-bold transition-all ${
-                    currentPage === page
-                      ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-            >
-              Keyingi
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          <Pagination page={currentPage} totalPages={totalPages} onChange={p => { setCurrentPage(p) }} color="bg-primary-600" />
         )}
       </>
       )}

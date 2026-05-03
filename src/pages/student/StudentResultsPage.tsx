@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   TrendingUp, CheckCircle2, Coins, Flame, ClipboardList,
-  Circle, Clock, ChevronLeft, ChevronRight,
+  Circle, Clock,
 } from 'lucide-react'
 import { getCurrentUserId, getProgress, getTasks, getCoinData } from '../../storage'
 import type { Task, StudentTaskProgress, CoinData } from '../../types'
+import { Pagination } from '../../components/Pagination'
 
 const ITEMS_PER_PAGE = 10
 
@@ -107,7 +108,7 @@ export function StudentResultsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-slate-100 truncate">
-                      {isStreak ? 'Streak bonusi' : isQuest ? 'Kunlik vazifa bonusi' : task?.title || 'Topshiriq'}
+                      {isStreak ? 'Seriya bonusi' : isQuest ? 'Kunlik vazifa bonusi' : task?.title || 'Topshiriq'}
                     </div>
                     {record.completedAt && (
                       <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
@@ -136,37 +137,12 @@ export function StudentResultsPage() {
         )}
 
         {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-            >
-              <ChevronLeft size={14} /> Oldingi
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                    currentPage === page
-                      ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-            >
-              Keyingi <ChevronRight size={14} />
-            </button>
-          </div>
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            onChange={setCurrentPage}
+            color="bg-purple-600"
+          />
         )}
       </div>
     </div>

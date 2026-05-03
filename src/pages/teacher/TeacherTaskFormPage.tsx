@@ -227,7 +227,8 @@ export function TeacherTaskFormPage() {
       return
     }
 
-    if (MC_TYPES.includes(form.type) && form.questions.length === 0) {
+    const QUESTION_TYPES: TaskType[] = [...MC_TYPES, 'fill-blank', 'true-false']
+    if (QUESTION_TYPES.includes(form.type) && form.questions.length === 0) {
       alert("Kamida 1 ta savol qo'shing!")
       return
     }

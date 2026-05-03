@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Star, Trophy, Zap, Crown, Gem, Flame, Shield, Rocket, Award } from 'lucide-react'
 
@@ -33,7 +32,69 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'streak-30': Crown,   'xp-10000': Crown, 'tasks-100': Trophy,
 }
 
-// Confetti particle
+// ─── Yutuq ovozi ─────────────────────────────────────────────────────────────
+// Brauzer autoplay policy: AudioContext suspended bo'lsa resume() chaqiramiz
+function playAchievementSound(rarity: UnlockedAchievement['rarity']) {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    const ac = new AudioCtx()
+
+    const play = () => {
+      const note = (freq: number, start: number, dur: number, vol = 0.25, type: OscillatorType = 'sine') => {
+        const osc  = ac.createOscillator()
+        const gain = ac.createGain()
+        osc.connect(gain)
+        gain.connect(ac.destination)
+        osc.type = type
+        osc.frequency.setValueAtTime(freq, ac.currentTime + start)
+        gain.gain.setValueAtTime(0, ac.currentTime + start)
+        gain.gain.linearRampToValueAtTime(vol, ac.currentTime + start + 0.02)
+        gain.gain.setValueAtTime(vol, ac.currentTime + start + dur - 0.04)
+        gain.gain.linearRampToValueAtTime(0, ac.currentTime + start + dur)
+        osc.start(ac.currentTime + start)
+        osc.stop(ac.currentTime + start + dur)
+      }
+
+      if (rarity === 'oddiy') {
+        note(523, 0,    0.12)
+        note(659, 0.12, 0.12)
+        note(784, 0.24, 0.25)
+      } else if (rarity === 'noyob') {
+        note(523, 0,    0.1)
+        note(659, 0.1,  0.1)
+        note(784, 0.2,  0.1)
+        note(1047,0.3,  0.35)
+        note(800, 0.35, 0.05, 0.1, 'sawtooth')
+        note(900, 0.40, 0.05, 0.1, 'sawtooth')
+        note(850, 0.45, 0.05, 0.1, 'sawtooth')
+      } else if (rarity === 'epik') {
+        note(392, 0,    0.15, 0.3)
+        note(523, 0.15, 0.15, 0.3)
+        note(659, 0.3,  0.15, 0.3)
+        note(784, 0.45, 0.15, 0.3)
+        note(1047,0.6,  0.4,  0.35)
+        ;[2093, 2637, 3136].forEach((f, i) => note(f, 0.65 + i * 0.07, 0.2, 0.08))
+        for (let i = 0; i < 5; i++) note(600 + i * 80, 0.7 + i * 0.06, 0.05, 0.12, 'sawtooth')
+      } else {
+        // afsonaviy
+        ;[523, 659, 784].forEach((f, i) => note(f, i * 0.08, 0.3, 0.2))
+        ;[523, 659, 784, 1047, 1319].forEach((f, i) => note(f, 0.3 + i * 0.1, 0.15, 0.28))
+        ;[2093, 2637, 3136, 4186].forEach((f, i) => note(f, 0.85 + i * 0.06, 0.25, 0.1))
+        for (let i = 0; i < 8; i++) note(500 + i * 60, 0.9 + i * 0.07, 0.06, 0.15, 'sawtooth')
+        ;[523, 659, 784, 1047].forEach((f, i) => note(f, 1.5 + i * 0.04, 0.6, 0.2))
+      }
+    }
+
+    // suspended bo'lsa resume qilib, keyin chalish
+    if (ac.state === 'suspended') {
+      ac.resume().then(play).catch(() => {})
+    } else {
+      play()
+    }
+  } catch { /* silent fail */ }
+}
+
+// ─── Confetti particle ────────────────────────────────────────────────────────
 function ConfettiParticle({ index }: { index: number }) {
   const colors = ['#7c3aed','#db2777','#f59e0b','#06b6d4','#10b981','#f97316','#8b5cf6','#ec4899']
   const color  = colors[index % colors.length]
@@ -53,20 +114,31 @@ function ConfettiParticle({ index }: { index: number }) {
   )
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
 export function AchievementUnlockModal({ achievements, onClose }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [showConfetti, setShowConfetti] = useState(true)
+  const [showConfetti, setShowConfetti]  = useState(true)
+  const playedRef = useRef<Set<number>>(new Set())
 
-  const current = achievements[currentIndex]
-  const isLast  = currentIndex === achievements.length - 1
-  const cfg     = rarityConfig[current?.rarity ?? 'oddiy']
+  const current  = achievements[currentIndex]
+  const isLast   = currentIndex === achievements.length - 1
+  const cfg      = rarityConfig[current?.rarity ?? 'oddiy']
   const IconComp = ICON_MAP[current?.id ?? ''] ?? Award
 
+  // Confetti reset
   useEffect(() => {
     setShowConfetti(true)
     const t = setTimeout(() => setShowConfetti(false), 2000)
     return () => clearTimeout(t)
   }, [currentIndex])
+
+  // Ovoz — modal animatsiyasi bilan sinxron, resume() bilan
+  useEffect(() => {
+    if (!current || playedRef.current.has(currentIndex)) return
+    playedRef.current.add(currentIndex)
+    const t = setTimeout(() => playAchievementSound(current.rarity), 200)
+    return () => clearTimeout(t)
+  }, [currentIndex, current])
 
   const handleNext = () => {
     if (isLast) onClose()
@@ -114,7 +186,7 @@ export function AchievementUnlockModal({ achievements, onClose }: Props) {
           </button>
 
           <div className="relative px-6 pt-8 pb-6 text-center space-y-5">
-            {/* Badge count */}
+            {/* Progress dots */}
             {achievements.length > 1 && (
               <div className="flex justify-center gap-1.5 mb-2">
                 {achievements.map((_, i) => (
@@ -129,7 +201,6 @@ export function AchievementUnlockModal({ achievements, onClose }: Props) {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative inline-block"
             >
-              {/* Outer ring */}
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
@@ -140,7 +211,6 @@ export function AchievementUnlockModal({ achievements, onClose }: Props) {
                 </div>
               </motion.div>
 
-              {/* Sparkles */}
               {['top-0 right-2', 'bottom-1 left-1', 'top-2 left-0'].map((pos, i) => (
                 <motion.div
                   key={i}
@@ -182,7 +252,6 @@ export function AchievementUnlockModal({ achievements, onClose }: Props) {
                 {current.description}
               </motion.p>
 
-              {/* Rarity badge */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -203,8 +272,14 @@ export function AchievementUnlockModal({ achievements, onClose }: Props) {
               transition={{ delay: 0.65 }}
               whileTap={{ scale: 0.96 }}
               onClick={handleNext}
-              className={`w-full py-3.5 rounded-2xl font-bold text-base text-white transition-all bg-gradient-to-r ${cfg.bg.replace('/40','').replace('/20','')} border ${cfg.border} hover:brightness-125 ${cfg.glow}`}
-              style={{ background: current.rarity === 'afsonaviy' ? 'linear-gradient(135deg,#d97706,#b45309)' : current.rarity === 'epik' ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : current.rarity === 'noyob' ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : 'linear-gradient(135deg,#475569,#334155)' }}
+              className={`w-full py-3.5 rounded-2xl font-bold text-base text-white transition-all border ${cfg.border} hover:brightness-125 ${cfg.glow}`}
+              style={{
+                background:
+                  current.rarity === 'afsonaviy' ? 'linear-gradient(135deg,#d97706,#b45309)' :
+                  current.rarity === 'epik'      ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' :
+                  current.rarity === 'noyob'     ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' :
+                  'linear-gradient(135deg,#475569,#334155)'
+              }}
             >
               {isLast ? "Zo'r, davom etaman! 🚀" : `Keyingisi (${currentIndex + 2}/${achievements.length})`}
             </motion.button>

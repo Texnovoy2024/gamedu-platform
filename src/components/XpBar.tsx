@@ -1,18 +1,15 @@
 import { TrendingUp } from 'lucide-react'
+import { xpForLevel } from '../storage'
 
 interface Props {
   currentXp: number
   level: number
 }
 
-function xpForLevel(level: number) {
-  return (level + 1) ** 2 * 120
-}
-
 export function XpBar({ currentXp, level }: Props) {
-  const nextLevelTarget = xpForLevel(level)
-  const prevLevelTarget = xpForLevel(Math.max(level - 1, 0))
-  const span            = nextLevelTarget - prevLevelTarget || 1
+  const nextLevelTarget = xpForLevel(level + 1)
+  const prevLevelTarget = xpForLevel(level)
+  const span            = Math.max(1, nextLevelTarget - prevLevelTarget)
   const progress        = Math.max(0, Math.min(1, (currentXp - prevLevelTarget) / span))
   const pct             = Math.round(progress * 100)
 
@@ -24,7 +21,7 @@ export function XpBar({ currentXp, level }: Props) {
           <span>XP darajasi</span>
         </div>
         <span>
-          {currentXp} XP &nbsp;·&nbsp;{' '}
+          {currentXp.toLocaleString()} XP &nbsp;·&nbsp;{' '}
           {pct >= 100 ? 'Keyingi daraja tayyor' : `${pct}%`}
         </span>
       </div>
@@ -32,13 +29,13 @@ export function XpBar({ currentXp, level }: Props) {
       <div className="h-2 rounded-full bg-slate-800/80 overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-xp-300 via-xp-500 to-primary-500 shadow-glow transition-all duration-700"
-          style={{ width: `${Math.max(6, progress * 100)}%` }}
+          style={{ width: `${Math.max(4, progress * 100)}%` }}
         />
       </div>
 
       <div className="flex justify-between text-[10px] text-slate-500">
         <span>{level}-daraja</span>
-        <span>{nextLevelTarget} XP</span>
+        <span>{nextLevelTarget.toLocaleString()} XP</span>
       </div>
     </div>
   )

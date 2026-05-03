@@ -5,7 +5,7 @@ import { Brain, Hash, Target, TrendingUp,
   Coins, Play, ChevronRight, CheckCircle2,
   Clock, Star, Flame, Volume2, VolumeX, Globe, Music, Type, Film, Puzzle, Globe2,
 } from 'lucide-react'
-import { getCurrentUserId, addCoins, calculateStudentStats, getProgress, saveProgress } from '../../storage'
+import { getCurrentUserId, addCoins, calculateStudentStats, getProgress, saveProgress, updateDailyQuestProgress } from '../../storage'
 import { LevelUpModal } from '../../components/LevelUpModal'
 import { playCorrect, playWrong, playCombo, playVictory, playDefeat, playFlip, playHit, playTick, playCountdown, stopBgMusic } from '../../utils/gameAudio'
 import type { StudentTaskProgress } from '../../types'
@@ -289,24 +289,46 @@ function GameBackground({ gameId, children }: { gameId: string; children: React.
 }
 
 // ─── XP berish yordamchi ─────────────────────────────────────────────────────
-async function awardMiniGameXp(userId: string, gameId: string, xp: number): Promise<{ leveledUp: boolean; newLevel: number; earnedCoins: number }> {
-  const coins = Math.max(1, Math.floor(xp / 10))
+async function awardMiniGameXp(
+  userId: string,
+  gameId: string,
+  xp: number,
+  maxXp: number  // har o'yin uchun maksimal XP chegarasi
+): Promise<{ leveledUp: boolean; newLevel: number; earnedCoins: number }> {
+  // XP ni max chegarasi bilan cheklaymiz
+  const clampedXp = Math.min(maxXp, Math.max(0, Math.round(xp)))
+  if (clampedXp <= 0) return { leveledUp: false, newLevel: 1, earnedCoins: 0 }
+
+  const coins = Math.max(1, Math.floor(clampedXp / 10))
+
+  // oldStats ni saveProgress DAN OLDIN olamiz
+  const oldStats = await calculateStudentStats(userId)
+
   const progress = await getProgress()
   const id = `minigame_${gameId}_${userId}_${Date.now()}`
   const record: StudentTaskProgress = {
     id, studentId: userId, taskId: `minigame_${gameId}`,
-    status: 'completed', earnedXp: xp, completedAt: new Date().toISOString(),
+    status: 'completed', earnedXp: clampedXp, completedAt: new Date().toISOString(),
   }
   progress.push(record)
   await saveProgress(progress)
   await addCoins(userId, coins)
-  const oldStats = await calculateStudentStats(userId)
+
+  // Kunlik vazifalarni yangilaymiz
+  await updateDailyQuestProgress(userId, 'earn_xp', clampedXp)
+
   const newStats = await calculateStudentStats(userId)
-  return { leveledUp: newStats.level > oldStats.level, newLevel: newStats.level, earnedCoins: coins }
+  return {
+    leveledUp: newStats.level > oldStats.level,
+    newLevel: newStats.level,
+    earnedCoins: coins,
+  }
 }
 
 // ─── SAVOL BANKI (mini-game uchun) ───────────────────────────────────────────
-const QUIZ_QUESTIONS = [
+// Variantlarni har safar random tartibda ko'rsatish uchun shuffle ishlatamiz
+
+const QUIZ_QUESTIONS_RAW = [
   { q: "O'zbekiston poytaxti?", options: ["Samarqand", "Toshkent", "Buxoro", "Namangan"], correct: "Toshkent" },
   { q: "2 × 8 = ?", options: ["14", "16", "18", "12"], correct: "16" },
   { q: "HTML nima?", options: ["Dasturlash tili", "Belgilash tili", "Ma'lumotlar bazasi", "Operatsion tizim"], correct: "Belgilash tili" },
@@ -328,6 +350,8 @@ const QUIZ_QUESTIONS = [
   { q: "Birinchi kompyuter qachon yaratilgan?", options: ["1930s", "1940s", "1950s", "1960s"], correct: "1940s" },
   { q: "100 ning 15% i?", options: ["10", "12", "15", "20"], correct: "15" },
 ]
+
+// Har o'yin boshlanishida variantlarni aralashtirish — endi faqat QUIZ_QUESTIONS_RAW ishlatiladi
 
 // ─── MATEMATIK ZANJIR ────────────────────────────────────────────────────────
 function generateMathChain(level: number): { question: string; answer: number } {
@@ -363,7 +387,8 @@ const GAMES = [
     border: 'border-indigo-500/40',
     glowColor: '#7c3aed',
     image: blitzImg,
-    maxXp: 200,
+    maxXp: 120,        // Oson: 4 variant, taxmin qilsa bo'ladi
+    difficulty: 'oson' as const,
   },
   {
     id: 'math-chain',
@@ -374,7 +399,8 @@ const GAMES = [
     border: 'border-emerald-500/40',
     glowColor: '#059669',
     image: mathImg,
-    maxXp: 150,
+    maxXp: 180,        // O'rta: ketma-ket hisob
+    difficulty: 'orta' as const,
   },
   {
     id: 'target-shot',
@@ -385,7 +411,8 @@ const GAMES = [
     border: 'border-rose-500/40',
     glowColor: '#dc2626',
     image: targetImg,
-    maxXp: 180,
+    maxXp: 100,        // Oson: oddiy hisob, 5 soniya vaqt
+    difficulty: 'oson' as const,
   },
   {
     id: 'memory-match',
@@ -396,7 +423,8 @@ const GAMES = [
     border: 'border-yellow-500/40',
     glowColor: '#d97706',
     image: memoryImg,
-    maxXp: 120,
+    maxXp: 130,        // O'rta: xotira va diqqat kerak
+    difficulty: 'orta' as const,
   },
   {
     id: 'flag-quiz',
@@ -407,7 +435,8 @@ const GAMES = [
     border: 'border-blue-500/40',
     glowColor: '#0284c7',
     image: flagImg,
-    maxXp: 200,
+    maxXp: 150,        // O'rta: bilim kerak, 15 savol
+    difficulty: 'orta' as const,
   },
   {
     id: 'music-quiz',
@@ -418,7 +447,8 @@ const GAMES = [
     border: 'border-purple-500/40',
     glowColor: '#9333ea',
     image: musicImg,
-    maxXp: 150,
+    maxXp: 180,        // O'rta: melodiya tanish
+    difficulty: 'orta' as const,
   },
   {
     id: 'word-chain',
@@ -429,7 +459,8 @@ const GAMES = [
     border: 'border-cyan-500/40',
     glowColor: '#0891b2',
     image: wordImg,
-    maxXp: 150,
+    maxXp: 250,        // Qiyin: lug'at bilish + tez o'ylash
+    difficulty: 'qiyin' as const,
   },
   {
     id: 'gif-quiz',
@@ -440,7 +471,8 @@ const GAMES = [
     border: 'border-pink-500/40',
     glowColor: '#db2777',
     image: gifImg,
-    maxXp: 150,
+    maxXp: 80,         // Oson: vizual, animatsiya ko'rish
+    difficulty: 'oson' as const,
   },
   {
     id: 'puzzle',
@@ -451,7 +483,8 @@ const GAMES = [
     border: 'border-violet-500/40',
     glowColor: '#7c3aed',
     image: puzzleImg,
-    maxXp: 120,
+    maxXp: 200,        // O'rta-qiyin: vizual fikrlash, drag & drop
+    difficulty: 'orta' as const,
   },
   {
     id: 'map-game',
@@ -462,7 +495,8 @@ const GAMES = [
     border: 'border-teal-500/40',
     glowColor: '#14b8a6',
     image: mapImg,
-    maxXp: 180,
+    maxXp: 160,        // O'rta: poytaxt bilish kerak
+    difficulty: 'orta' as const,
   },
 ]
 
@@ -496,10 +530,14 @@ export function MiniGamesPage() {
   const handleGameEnd = async (xp: number, gameId: string) => {
     stopBgMusic()
     if (!userId || xp <= 0) { setActiveGame(null); return }
-    const result = await awardMiniGameXp(userId, `${gameId}_${Date.now()}`, xp)
+    // GAMES config dan maxXp ni olamiz
+    const gameConfig = GAMES.find(g => g.id === activeGame)
+    const maxXp = gameConfig?.maxXp ?? 200
+    const clampedXp = Math.min(maxXp, Math.max(0, Math.round(xp)))
+    const result = await awardMiniGameXp(userId, `${gameId}_${Date.now()}`, clampedXp, maxXp)
     setActiveGame(null)
     if (result.leveledUp) {
-      setLevelUpData({ newLevel: result.newLevel, earnedXp: xp, earnedCoins: result.earnedCoins })
+      setLevelUpData({ newLevel: result.newLevel, earnedXp: clampedXp, earnedCoins: result.earnedCoins })
       setTimeout(() => setShowLevelUp(true), 300)
     }
   }
@@ -567,6 +605,16 @@ export function MiniGamesPage() {
                 <TrendingUp size={10} />
                 max {game.maxXp} XP
               </div>
+              {/* Difficulty badge */}
+              <div className={`absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-xs font-bold border backdrop-blur-sm ${
+                game.difficulty === 'oson'
+                  ? 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40'
+                  : game.difficulty === 'orta'
+                  ? 'bg-yellow-900/60 text-yellow-300 border-yellow-500/40'
+                  : 'bg-rose-900/60 text-rose-300 border-rose-500/40'
+              }`}>
+                {game.difficulty === 'oson' ? '⭐ Oson' : game.difficulty === 'orta' ? '⭐⭐ O\'rta' : '⭐⭐⭐ Qiyin'}
+              </div>
               {/* Game icon badge */}
               <div className={`absolute top-3 left-3 w-9 h-9 rounded-xl bg-gradient-to-br ${game.color} flex items-center justify-center shadow-lg`}>
                 <game.icon size={18} className="text-white" />
@@ -611,12 +659,18 @@ function BlitzQuiz({ onEnd }: { onEnd: (xp: number) => void }) {
   const [timeLeft, setTimeLeft] = useState(60)
   const [qIndex, setQIndex] = useState(0)
   const [score, setScore] = useState(0)
+  const [correctCount, setCorrectCount] = useState(0)
   const [streak, setStreak] = useState(0)
+  const [maxStreak, setMaxStreak] = useState(0)
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null)
   const [emojiType, setEmojiType] = useState<keyof typeof REACTIONS>('correct')
   const [showEmoji, setShowEmoji] = useState(false)
   const [mascotMood, setMascotMood] = useState<MascotMood>('idle')
-  const [shuffled] = useState(() => [...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5))
+  const [shuffled] = useState(() =>
+    [...QUIZ_QUESTIONS_RAW]
+      .sort(() => Math.random() - 0.5)
+      .map(q => ({ ...q, options: [...q.options].sort(() => Math.random() - 0.5) }))
+  )
 
   useEffect(() => {
     if (phase !== 'playing') return
@@ -640,8 +694,11 @@ function BlitzQuiz({ onEnd }: { onEnd: (xp: number) => void }) {
     if (correct) {
       const newStreak = streak + 1
       const bonus = newStreak >= 3 ? 15 : newStreak >= 2 ? 10 : 5
-      setScore(s => s + bonus)
+      // Score ni 120 dan oshirmaymiz
+      setScore(s => Math.min(120, s + bonus))
+      setCorrectCount(c => c + 1)
       setStreak(newStreak)
+      setMaxStreak(ms => Math.max(ms, newStreak))
       if (newStreak >= 3) {
         safePlay(playCombo)
         setEmojiType('combo')
@@ -667,7 +724,7 @@ function BlitzQuiz({ onEnd }: { onEnd: (xp: number) => void }) {
     }, 600)
   }
 
-  const earnedXp = Math.min(200, score)
+  const earnedXp = score // allaqachon Math.min(120, ...) bilan cheklangan
   const q = shuffled[qIndex % shuffled.length]
   const timerColor = timeLeft > 30 ? 'text-emerald-400' : timeLeft > 10 ? 'text-yellow-400' : 'text-rose-400 animate-pulse'
 
@@ -677,14 +734,14 @@ function BlitzQuiz({ onEnd }: { onEnd: (xp: number) => void }) {
       icon={<Brain size={32} className="text-indigo-400" />}
       color="from-indigo-600 to-purple-600"
       gameId="blitz-quiz"
-      rules={["60 soniya vaqt beriladi", "Har to'g'ri javob = 5 XP", "Ketma-ket to'g'ri = bonus XP", "Xato qilsangiz streak yo'qoladi"]}
+      rules={["60 soniya vaqt beriladi", "Har to'g'ri javob = 5-15 XP", "Ketma-ket to'g'ri = bonus XP", "Xato qilsangiz seriya yo'qoladi"]}
       onStart={() => { setPhase('playing'); setMascotMood('thinking') }}
       onBack={() => onEnd(0)}
     />
   )
 
   if (phase === 'result') {
-    safePlay(earnedXp > 50 ? playVictory : playDefeat)
+    safePlay(earnedXp > 40 ? playVictory : playDefeat)
     stopBgMusic()
     return (
       <GameResult
@@ -693,8 +750,8 @@ function BlitzQuiz({ onEnd }: { onEnd: (xp: number) => void }) {
         gameId="blitz-quiz"
         mood={earnedXp > 50 ? 'victory' : 'sad'}
         stats={[
-          { label: "To'g'ri javoblar", value: String(Math.floor(score / 5)) },
-          { label: 'Eng uzun streak', value: String(streak) },
+          { label: "To'g'ri javoblar", value: String(correctCount) },
+          { label: 'Eng uzun seriya', value: String(maxStreak) },
         ]}
         onEnd={() => onEnd(earnedXp)}
       />
@@ -803,7 +860,8 @@ function MathChain({ onEnd }: { onEnd: (xp: number) => void }) {
     if (isNaN(userAnswer)) return
     if (userAnswer === current.answer) {
       const xp = 5 + level * 2
-      setScore(s => s + xp)
+      // Score ni 300 dan oshirmaymiz
+      setScore(s => Math.min(180, s + xp))
       setLevel(l => l + 1)
       setCurrent(generateMathChain(level + 1))
       setInput('')
@@ -831,7 +889,7 @@ function MathChain({ onEnd }: { onEnd: (xp: number) => void }) {
     }
   }
 
-  const earnedXp = Math.min(150, score)
+  const earnedXp = score // allaqachon Math.min(180, ...) bilan cheklangan
 
   if (phase === 'intro') return (
     <GameIntro
@@ -878,7 +936,7 @@ function MathChain({ onEnd }: { onEnd: (xp: number) => void }) {
             </div>
             <div className="text-sm text-slate-400">Daraja: <span className="text-emerald-400 font-bold">{level}</span></div>
             <div className="flex items-center gap-1 text-emerald-400 font-bold text-sm">
-              <TrendingUp size={14} /> {score} XP
+              <TrendingUp size={14} /> {Math.min(180, score)} / 180 XP
             </div>
           </div>
 
@@ -936,7 +994,8 @@ function TargetShot({ onEnd }: { onEnd: (xp: number) => void }) {
 
   const nextRound = useCallback((hit: boolean) => {
     if (hit) {
-      setScore(s => s + Math.max(5, timeLeft * 3))
+      // Score ni 100 dan oshirmaymiz
+      setScore(s => Math.min(100, s + Math.max(5, timeLeft * 3)))
       safePlay(playHit)
       setEmojiType('correct')
       setMascotMood('happy')
@@ -978,7 +1037,7 @@ function TargetShot({ onEnd }: { onEnd: (xp: number) => void }) {
     else nextRound(false)
   }
 
-  const earnedXp = Math.min(180, score)
+  const earnedXp = Math.min(100, score)
 
   if (phase === 'intro') return (
     <GameIntro
@@ -1161,7 +1220,7 @@ function MemoryMatch({ onEnd }: { onEnd: (xp: number) => void }) {
     }
   }
 
-  const earnedXp = Math.max(20, Math.min(120, 120 - moves * 3 - Math.floor(elapsed / 5)))
+  const earnedXp = Math.max(10, Math.min(130, 130 - moves * 3 - Math.floor(elapsed / 5)))
 
   if (phase === 'intro') return (
     <GameIntro

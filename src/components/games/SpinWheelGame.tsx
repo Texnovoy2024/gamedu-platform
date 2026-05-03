@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RotateCcw, CheckCircle2, XCircle, ChevronRight, Layers } from 'lucide-react'
 import type { MultipleChoiceQuestion } from '../../types'
@@ -10,30 +10,29 @@ interface Props {
 }
 
 export function SpinWheelGame({ questions, onFinish }: Props) {
-  const [phase, setPhase] = useState<'spin' | 'answer' | 'feedback' | 'done'>('spin')
+  const [phase, setPhase] = useState<'spin' | 'answer' | 'feedback'>('spin')
   const [spinning, setSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [currentQIndex, setCurrentQIndex] = useState<number | null>(null)
   const [usedIndices, setUsedIndices] = useState<number[]>([])
+  const [results, setResults] = useState<boolean[]>([])
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [isCorrect, setIsCorrect] = useState(false)
-  const [results, setResults] = useState<boolean[]>([])
+  // Oxirgi savol ekanligini track qilamiz — state sifatida, stale closure muammosiz
+  const [isFinishing, setIsFinishing] = useState(false)
   const spinRef = useRef(0)
 
-  const remaining = questions.filter((_, i) => !usedIndices.includes(i))
-
   const handleSpin = () => {
-    if (spinning || remaining.length === 0) return
+    if (spinning || usedIndices.length >= questions.length) return
     setSpinning(true)
     setSelectedAnswer(null)
+    setIsFinishing(false)
 
-    // Tasodifiy qaysi savol tushishini oldindan belgilaymiz
     const availableIndices = questions
       .map((_, i) => i)
       .filter(i => !usedIndices.includes(i))
     const pickedIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)]
 
-    // G'ildirak animatsiyasi
     const extraSpins = 5 + Math.random() * 5
     const segmentAngle = 360 / questions.length
     const targetAngle = 360 - (pickedIndex * segmentAngle + segmentAngle / 2)
@@ -50,41 +49,39 @@ export function SpinWheelGame({ questions, onFinish }: Props) {
   }
 
   const handleAnswer = (answer: string) => {
-    if (!currentQIndex === null || selectedAnswer) return
-    const q = questions[currentQIndex!]
+    if (selectedAnswer !== null || currentQIndex === null) return
+    const q = questions[currentQIndex]
     const correct = q.options.find(o => o.endsWith(' *'))?.replace(' *', '').trim()
     const ok = answer === correct
+
     setSelectedAnswer(answer)
     setIsCorrect(ok)
-    setResults(prev => [...prev, ok])
-    setUsedIndices(prev => [...prev, currentQIndex!])
+
+    const newResults = [...results, ok]
+    const newUsed = [...usedIndices, currentQIndex]
+    setResults(newResults)
+    setUsedIndices(newUsed)
     setPhase('feedback')
+
+    // Bu oxirgi savol bo'lsa — finish
+    const isLast = newUsed.length >= questions.length
+    if (isLast) {
+      setIsFinishing(true)
+      setTimeout(() => {
+        const correctCount = newResults.filter(Boolean).length
+        onFinish(correctCount, questions.length)
+      }, 1800)
+    }
   }
 
   const handleNext = () => {
-    const allDone = usedIndices.length + 1 >= questions.length
-    if (allDone) {
-      setPhase('done')
-    } else {
-      setPhase('spin')
-      setCurrentQIndex(null)
-      setSelectedAnswer(null)
-    }
+    setPhase('spin')
+    setCurrentQIndex(null)
+    setSelectedAnswer(null)
+    setIsFinishing(false)
   }
-
-  useEffect(() => {
-    if (phase === 'done') {
-      const correct = results.filter(Boolean).length
-      onFinish(correct, questions.length)
-    }
-  }, [phase])
 
   const q = currentQIndex !== null ? questions[currentQIndex] : null
-
-  // ─── DONE ────────────────────────────────────────────────────────────────────
-  if (phase === 'done') {
-    return null // parent handles result
-  }
 
   return (
     <div className="space-y-6">
@@ -95,16 +92,19 @@ export function SpinWheelGame({ questions, onFinish }: Props) {
           <span>{usedIndices.length}/{questions.length} savol bajarildi</span>
         </div>
         <div className="flex gap-1">
-          {questions.map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full ${
-                usedIndices.includes(i)
-                  ? results[usedIndices.indexOf(i)] ? 'bg-emerald-500' : 'bg-rose-500'
-                  : 'bg-slate-700'
-              }`}
-            />
-          ))}
+          {questions.map((_, i) => {
+            const usedPos = usedIndices.indexOf(i)
+            return (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full ${
+                  usedPos >= 0
+                    ? results[usedPos] ? 'bg-emerald-500' : 'bg-rose-500'
+                    : 'bg-slate-700'
+                }`}
+              />
+            )
+          })}
         </div>
       </div>
 
@@ -147,7 +147,7 @@ export function SpinWheelGame({ questions, onFinish }: Props) {
                   const largeArc = 360 / questions.length > 180 ? 1 : 0
 
                   const colors = ['#4f46e5','#dc2626','#059669','#d97706','#7c3aed','#2563eb','#ea580c','#0d9488']
-                  const fill = colors[i % colors.length]
+                  const fill = usedIndices.includes(i) ? '#334155' : colors[i % colors.length]
 
                   return (
                     <g key={i}>
@@ -259,13 +259,22 @@ export function SpinWheelGame({ questions, onFinish }: Props) {
             )}
           </div>
 
-          <button
-            onClick={handleNext}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:brightness-110 text-white font-semibold flex items-center justify-center gap-2 transition-all"
-          >
-            {usedIndices.length >= questions.length ? 'Natijani ko\'rish' : "Keyingi savol"}
-            <ChevronRight size={18} />
-          </button>
+          {/* Oxirgi savol emas — keyingi tugma */}
+          {!isFinishing && (
+            <button
+              onClick={handleNext}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:brightness-110 text-white font-semibold flex items-center justify-center gap-2 transition-all"
+            >
+              Keyingi savol <ChevronRight size={18} />
+            </button>
+          )}
+
+          {/* Oxirgi savol — natija hisoblanmoqda */}
+          {isFinishing && (
+            <div className="text-center py-3 text-sm text-slate-400 animate-pulse">
+              Natijalar hisoblanmoqda...
+            </div>
+          )}
         </motion.div>
       )}
     </div>

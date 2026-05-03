@@ -51,7 +51,8 @@ const FLAGS = [
 ]
 
 function flagUrl(code: string) {
-  return `https://flagcdn.com/w320/${code}.png`
+  // SVG format — barcha bayroqlar uchun ishonchli ishlaydi
+  return `https://flagcdn.com/${code.toLowerCase()}.svg`
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -143,7 +144,7 @@ export function FlagQuizGame({ onEnd }: Props) {
       const newStreak = streak + 1
       const comboBonus = newStreak >= 3 ? 5 : 0
       const gained = XP_PER_CORRECT + speedBonus + comboBonus
-      setScore(s => s + gained)
+      setScore(s => Math.min(150, s + gained))
       setStreak(newStreak)
       setMaxStreak(ms => Math.max(ms, newStreak))
       setCorrect(c => c + 1)
@@ -169,8 +170,8 @@ export function FlagQuizGame({ onEnd }: Props) {
     setTimeout(() => {
       const next = round + 1
       if (next >= TOTAL_ROUNDS) {
-        const finalXp = Math.min(200, score + (isCorrect ? XP_PER_CORRECT : 0))
-        if (finalXp > 100) { playVictory(); setMascotMood('victory') }
+        const finalXp = Math.min(150, score + (isCorrect ? XP_PER_CORRECT : 0))
+        if (finalXp > 75) { playVictory(); setMascotMood('victory') }
         else { playDefeat(); setMascotMood('sad') }
         setPhase('result')
       } else {
@@ -180,7 +181,7 @@ export function FlagQuizGame({ onEnd }: Props) {
     }, 1200)
   }
 
-  const earnedXp = Math.min(200, score)
+  const earnedXp = Math.min(150, score)
   const accuracy = TOTAL_ROUNDS > 0 ? Math.round((correct / TOTAL_ROUNDS) * 100) : 0
   const currentQ = questions[round]
 
@@ -292,7 +293,7 @@ export function FlagQuizGame({ onEnd }: Props) {
             {[
               { label: "To'g'ri", value: `${correct}/${TOTAL_ROUNDS}`, color: 'text-emerald-400' },
               { label: 'Aniqlik', value: `${accuracy}%`, color: 'text-blue-400' },
-              { label: 'Max streak', value: String(maxStreak), color: 'text-orange-400' },
+              { label: 'Max seriya', value: String(maxStreak), color: 'text-orange-400' },
             ].map(s => (
               <div key={s.label} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
                 <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
@@ -328,96 +329,80 @@ export function FlagQuizGame({ onEnd }: Props) {
       <AnimatePresence>
         {showEmoji && (
           <motion.div
-            initial={{ scale: 0, opacity: 0, y: 0 }}
-            animate={{ scale: [0, 1.5, 1], opacity: 1, y: -30 }}
-            exit={{ opacity: 0, y: -80 }}
-            transition={{ duration: 0.5 }}
-            className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none text-7xl"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.4, 1], opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none text-5xl"
           >
             {emojiVal}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mascot */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0, x: 80 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="fixed bottom-20 right-3 z-40"
-        >
-          <AvatarSVG mood={mascotMood} />
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <Globe size={14} />
-          <span>{round + 1}/{TOTAL_ROUNDS}</span>
+      {/* Sticky header */}
+      <div className="sticky top-0 z-30 px-4 pt-3 pb-2"
+        style={{ background: 'linear-gradient(135deg, #0d1b2e 0%, #0a2040 100%)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Globe size={14} />
+            <span>{round + 1}/{TOTAL_ROUNDS}</span>
+          </div>
+          <div className="flex items-center gap-1 text-emerald-400 font-bold text-sm">
+            <TrendingUp size={14} /> {score} XP
+          </div>
+          {streak >= 2 && (
+            <div className="text-orange-400 text-sm font-bold">🔥 x{streak}</div>
+          )}
         </div>
-        <div className="flex items-center gap-1 text-emerald-400 font-bold text-sm">
-          <TrendingUp size={14} /> {score} XP
-        </div>
-        {streak >= 2 && (
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 0.3 }}
-            className="text-orange-400 text-sm font-bold"
-          >
-            🔥 x{streak}
-          </motion.div>
-        )}
-      </div>
-
-      {/* Timer bar */}
-      <div className="px-4 mb-3">
-        <div className="h-2 bg-black/30 rounded-full overflow-hidden border border-white/5">
+        {/* Timer bar */}
+        <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">
           <motion.div
             className={`h-full rounded-full transition-all duration-1000 ${timerColor}`}
             style={{ width: `${timerPct}%` }}
           />
         </div>
-        <div className={`text-right text-xs mt-1 font-bold ${timeLeft <= 3 ? 'text-rose-400 animate-pulse' : 'text-slate-500'}`}>
+        <div className={`text-right text-xs mt-0.5 font-bold ${timeLeft <= 3 ? 'text-rose-400 animate-pulse' : 'text-slate-500'}`}>
           {timeLeft}s
         </div>
       </div>
 
-      {/* Flag image */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 gap-5">
+      {/* Content — scroll bo'lmaydi, compact */}
+      <div className="flex-1 flex flex-col items-center px-4 pt-2 pb-4 gap-3">
         <AnimatePresence mode="wait">
           <motion.div
             key={round}
-            initial={{ opacity: 0, scale: 0.8, rotateY: 90 }}
-            animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-xs"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-sm"
           >
-            <div className={`rounded-2xl overflow-hidden border-4 shadow-2xl transition-all ${
-              feedback === 'correct' ? 'border-emerald-400 shadow-emerald-500/30' :
-              feedback === 'wrong' ? 'border-rose-400 shadow-rose-500/30' :
-              'border-white/20 shadow-blue-500/20'
+            {/* Flag */}
+            <div className={`rounded-2xl overflow-hidden border-4 shadow-xl transition-all ${
+              feedback === 'correct' ? 'border-emerald-400' :
+              feedback === 'wrong'   ? 'border-rose-400'    :
+              'border-white/20'
             }`}>
               {!imgLoaded && (
-                <div className="w-full h-44 bg-white/10 animate-pulse flex items-center justify-center">
-                  <Globe size={32} className="text-slate-600" />
+                <div className="w-full h-36 bg-white/10 animate-pulse flex items-center justify-center">
+                  <Globe size={28} className="text-slate-600" />
                 </div>
               )}
               <img
                 src={flagUrl(currentQ.code)}
                 alt="Bayroq"
                 onLoad={() => setImgLoaded(true)}
-                className={`w-full h-44 object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0 absolute'}`}
+                className={`w-full h-36 object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0 absolute'}`}
               />
             </div>
 
             {/* Question */}
-            <div className="text-center mt-3">
-              <p className="text-white font-bold text-lg">Bu qaysi davlatning bayrog'i?</p>
+            <div className="text-center mt-2">
+              <p className="text-white font-bold text-base">Bu qaysi davlatning bayrog'i?</p>
               {feedback && (
                 <motion.p
-                  initial={{ opacity: 0, y: 5 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={`text-sm mt-1 font-semibold ${feedback === 'correct' ? 'text-emerald-400' : 'text-rose-400'}`}
                 >
@@ -429,7 +414,7 @@ export function FlagQuizGame({ onEnd }: Props) {
         </AnimatePresence>
 
         {/* Options */}
-        <div className="w-full max-w-xs grid grid-cols-2 gap-3">
+        <div className="w-full max-w-sm grid grid-cols-2 gap-2.5">
           {options.map((opt, i) => {
             const isSelected = selected === opt
             const isCorrectOpt = opt === currentQ.name
@@ -441,18 +426,17 @@ export function FlagQuizGame({ onEnd }: Props) {
             ]
             let cls = `bg-gradient-to-r ${colors[i]} hover:brightness-110`
             if (feedback) {
-              if (isCorrectOpt) cls = 'bg-emerald-500 ring-2 ring-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.5)]'
+              if (isCorrectOpt) cls = 'bg-emerald-500 ring-2 ring-emerald-300'
               else if (isSelected) cls = 'bg-rose-700 opacity-70'
               else cls = `bg-gradient-to-r ${colors[i]} opacity-30`
             }
             return (
               <motion.button
                 key={opt}
-                whileHover={!feedback ? { scale: 1.04, y: -2 } : {}}
                 whileTap={!feedback ? { scale: 0.96 } : {}}
                 onClick={() => !feedback && handleAnswer(opt)}
                 disabled={!!feedback}
-                className={`${cls} rounded-xl py-3 px-3 text-white text-sm font-semibold transition-all text-center`}
+                className={`${cls} rounded-xl py-3 px-2 text-white text-sm font-semibold transition-all text-center`}
               >
                 {opt}
               </motion.button>
