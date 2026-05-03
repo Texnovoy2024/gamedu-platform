@@ -2,13 +2,26 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ClipboardList, Users, Trophy, Plus, TrendingUp, Star, ChevronRight } from 'lucide-react'
 import { getTasks, getUsers, getRanking, getTitleForLevel } from '../../storage'
+import type { Task, User, StudentStats } from '../../types'
+import { useEffect, useState } from 'react'
 
 export function TeacherDashboard() {
-  const tasks          = getTasks()
-  const students       = getUsers().filter(u => u.role === 'student')
-  const ranking        = getRanking().slice(0, 5)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [students, setStudents] = useState<User[]>([])
+  const [ranking, setRanking] = useState<StudentStats[]>([])
+
+  useEffect(() => {
+    async function load() {
+      const [t, u, r] = await Promise.all([getTasks(), getUsers(), getRanking()])
+      setTasks(t)
+      setStudents(u.filter(u => u.role === 'student'))
+      setRanking(r.slice(0, 5))
+    }
+    load()
+  }, [])
+
   const publishedTasks = tasks.filter(t => t.isPublished)
-  const topStudent     = ranking[0]
+  const topStudent = ranking[0]
 
   return (
     <div className="space-y-6">
@@ -42,22 +55,8 @@ export function TeacherDashboard() {
       {/* Stats */}
       <div className="grid md:grid-cols-3 gap-4">
         {[
-          {
-            label: 'Faol topshiriqlar',
-            value: publishedTasks.length,
-            sub: `Jami: ${tasks.length} ta`,
-            color: 'text-primary-300',
-            Icon: ClipboardList,
-            delay: 0.08,
-          },
-          {
-            label: "Faol o'quvchilar",
-            value: students.length,
-            sub: "Ro'yxatdan o'tgan",
-            color: 'text-emerald-300',
-            Icon: Users,
-            delay: 0.13,
-          },
+          { label: 'Faol topshiriqlar', value: publishedTasks.length, sub: `Jami: ${tasks.length} ta`, color: 'text-primary-300', Icon: ClipboardList, delay: 0.08 },
+          { label: "Faol o'quvchilar",  value: students.length,       sub: "Ro'yxatdan o'tgan",       color: 'text-emerald-300', Icon: Users,         delay: 0.13 },
         ].map(({ label, value, sub, color, Icon, delay }) => (
           <motion.div
             key={label}

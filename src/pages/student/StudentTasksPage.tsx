@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -26,7 +26,7 @@ import {
   completeDailyAutoTask,
 } from '../../storage'
 import { LevelUpModal } from '../../components/LevelUpModal'
-import type { Task } from '../../types'
+import type { Task, StudentTaskProgress } from '../../types'
 import type { Subject } from '../../data/dailyTasksBank'
 
 const typeConfig: Record<string, { label: string; Icon: React.ElementType }> = {
@@ -55,14 +55,31 @@ export function StudentTasksPage() {
   const currentId = getCurrentUserId()
   const [filter, setFilter] = useState<FilterType>('all')
   const [currentPage, setCurrentPage] = useState(1)
+  const [tasks,     setTasks]     = useState<Task[]>([])
+  const [progress,  setProgress]  = useState<StudentTaskProgress[]>([])
+  const [doneDailyMap, setDoneDailyMap] = useState<Record<string, boolean>>({})
 
-  // Kunlik avtomatik topshiriqlar state
   const [dailyTasks] = useState(() => getDailyAutoTasks())
   const [activeQuestion, setActiveQuestion] = useState<{ subjectId: Subject; answer: string | null } | null>(null)
   const [dailyFeedback, setDailyFeedback] = useState<{ subjectId: Subject; correct: boolean; xp: number } | null>(null)
   const [showLevelUp, setShowLevelUp] = useState(false)
   const [levelUpData, setLevelUpData] = useState({ newLevel: 1, earnedXp: 0, earnedCoins: 0 })
-  const [, forceUpdate] = useState(0)
+
+  useEffect(() => {
+    if (!currentId) return
+    async function load() {
+      const [t, p] = await Promise.all([getTasks(), getProgress()])
+      setTasks(t.filter(t => t.isPublished))
+      setProgress(p)
+      // Check done status for each daily task
+      const doneMap: Record<string, boolean> = {}
+      await Promise.all(dailyTasks.map(async dt => {
+        doneMap[dt.subjectId] = await isDailyAutoTaskDone(currentId!, dt.subjectId)
+      }))
+      setDoneDailyMap(doneMap)
+    }
+    load()
+  }, [currentId])
 
   if (!currentId) {
     return <div className="p-6 text-center text-slate-400">Hisob topilmadi. Iltimos, qayta tizimga kiring.</div>
@@ -72,7 +89,7 @@ export function StudentTasksPage() {
     setActiveQuestion(prev => prev ? { ...prev, answer } : null)
   }
 
-  const handleDailySubmit = (subjectId: Subject) => {
+  const handleDailySubmit = async (subjectId: Subject) => {
     if (!currentId || !activeQuestion) return
     const task = dailyTasks.find(t => t.subjectId === subjectId)
     if (!task) return
@@ -87,11 +104,11 @@ export function StudentTasksPage() {
     }
 
     const xpToAward = correct ? task.xpReward : Math.floor(task.xpReward * 0.3)
-    const result = completeDailyAutoTask(currentId, subjectId, xpToAward)
+    const result = await completeDailyAutoTask(currentId, subjectId, xpToAward)
 
     setDailyFeedback({ subjectId, correct, xp: xpToAward })
     setActiveQuestion(null)
-    forceUpdate(n => n + 1)
+    setDoneDailyMap(prev => ({ ...prev, [subjectId]: true }))
 
     if (result?.leveledUp) {
       setTimeout(() => {
@@ -102,9 +119,6 @@ export function StudentTasksPage() {
 
     setTimeout(() => setDailyFeedback(null), 2500)
   }
-
-  const tasks = getTasks().filter(t => t.isPublished)
-  const progress = getProgress()
 
   const isCompleted = (taskId: string) =>
     progress.some(p => p.studentId === currentId && p.taskId === taskId && p.status === 'completed')
@@ -153,13 +167,13 @@ export function StudentTasksPage() {
             <span className="text-sm font-semibold text-primary-200">Bugungi kunlik topshiriqlar</span>
           </div>
           <span className="text-xs text-slate-500">
-            {dailyTasks.filter(t => isDailyAutoTaskDone(currentId, t.subjectId)).length}/{dailyTasks.length} bajarildi
+            {dailyTasks.filter(t => doneDailyMap[t.subjectId]).length}/{dailyTasks.length} bajarildi
           </span>
         </div>
 
         <div className="p-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {dailyTasks.map(task => {
-            const done = isDailyAutoTaskDone(currentId, task.subjectId)
+            const done = doneDailyMap[task.subjectId] ?? false
             const isActive = activeQuestion?.subjectId === task.subjectId
             const feedback = dailyFeedback?.subjectId === task.subjectId ? dailyFeedback : null
             const q = task.question

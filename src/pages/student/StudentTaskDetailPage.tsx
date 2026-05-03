@@ -71,23 +71,29 @@ export function StudentTaskDetailPage() {
       navigate('/student/tasks')
       return
     }
-    setLoading(true)
-    const foundTask = getTasks().find(t => t.id === taskId && t.isPublished)
-    if (!foundTask) {
-      setError('Topshiriq topilmadi yoki nashr qilinmagan')
+    async function load() {
+      setLoading(true)
+      const tasks = await getTasks()
+      const foundTask = tasks.find(t => t.id === taskId && t.isPublished)
+      if (!foundTask) {
+        setError('Topshiriq topilmadi yoki nashr qilinmagan')
+        setLoading(false)
+        return
+      }
+      setTask(foundTask)
+      if (foundTask.timeLimit) {
+        setTotalTimer(foundTask.timeLimit * 60)
+      }
+      const prog = await getProgress()
+      const done = prog.some(p => p.studentId === currentId && p.taskId === foundTask.id && p.status === 'completed')
+      setIsAlreadyCompleted(done)
       setLoading(false)
-      return
     }
-    setTask(foundTask)
-    if (foundTask.timeLimit) {
-      setTotalTimer(foundTask.timeLimit * 60)
-    }
-    setLoading(false)
+    load()
   }, [taskId, currentId, navigate])
 
-  const isCompleted = !!task && getProgress().some(
-    p => p.studentId === currentId && p.taskId === task.id && p.status === 'completed'
-  )
+  const [isAlreadyCompleted, setIsAlreadyCompleted] = useState(false)
+  const isCompleted = isAlreadyCompleted
 
   const questions = task?.questions?.filter(q => q.questionText?.trim()) ?? []
   const currentQ = questions[currentQIndex]
@@ -202,7 +208,7 @@ export function StudentTaskDetailPage() {
     }, 1200)
   }
 
-  const finishGame = (results?: QuestionResult[]) => {
+  const finishGame = async (results?: QuestionResult[]) => {
     const finalResults = results ?? questionResults
     if (!task || !currentId) return
 
@@ -210,7 +216,7 @@ export function StudentTaskDetailPage() {
     const totalCount = questions.length || 1
     const speedBonusTotal = finalResults.reduce((s, r) => s + r.speedBonus, 0)
 
-    const result = awardXpForTask(currentId, task, correctCount, totalCount)
+    const result = await awardXpForTask(currentId, task, correctCount, totalCount)
     if (!result) {
       setPhase('result')
       return
@@ -379,9 +385,9 @@ export function StudentTaskDetailPage() {
   }
 
   // ─── GAME COMPONENTS (spin-wheel, mystery-box, anagram) ─────────────────────
-  const handleGameFinish = (correctCount: number, totalCount: number) => {
+  const handleGameFinish = async (correctCount: number, totalCount: number) => {
     if (!task || !currentId) return
-    const result = awardXpForTask(currentId, task, correctCount, totalCount)
+    const result = await awardXpForTask(currentId, task, correctCount, totalCount)
     if (!result) { setPhase('result'); return }
     setEarnedXp(result.earnedXp)
     setEarnedCoins(result.earnedCoins)

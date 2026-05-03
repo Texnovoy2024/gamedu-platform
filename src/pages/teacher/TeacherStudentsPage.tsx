@@ -1,29 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { deleteUser, generateId, getUsers, upsertUser } from '../../storage'
 import type { User } from '../../types'
 import { Modal } from '../../components/Modal'
 
 export function TeacherStudentsPage() {
+  const [students, setStudents] = useState<User[]>([])
   const [editing, setEditing] = useState<User | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
-
-  const students = getUsers().filter((u) => u.role === 'student')
-
   const [form, setForm] = useState<{ id: string; name: string; password: string }>({
-    id: '',
-    name: '',
-    password: '',
+    id: '', name: '', password: '',
   })
 
+  async function loadStudents() {
+    const users = await getUsers()
+    setStudents(users.filter(u => u.role === 'student'))
+  }
+
+  useEffect(() => { loadStudents() }, [])
+
   function openCreate() {
-    setEditing({
-      id: '',
-      name: '',
-      password: '',
-      role: 'student',
-      createdAt: new Date().toISOString(),
-    })
+    setEditing({ id: '', name: '', password: '', role: 'student', createdAt: new Date().toISOString() })
     setForm({ id: '', name: '', password: '' })
   }
 
@@ -32,10 +29,9 @@ export function TeacherStudentsPage() {
     setForm({ id: student.id, name: student.name, password: student.password })
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!editing) return
-
     if (!form.name.trim()) return
 
     const now = new Date().toISOString()
@@ -50,18 +46,27 @@ export function TeacherStudentsPage() {
       createdAt: isNew ? now : editing.createdAt,
     }
 
-    upsertUser(next)
+    await upsertUser(next)
     setEditing(null)
+    loadStudents()
+  }
+
+  async function handleDeleteConfirm() {
+    if (confirmDelete) {
+      await deleteUser(confirmDelete.id)
+      setConfirmDelete(null)
+      loadStudents()
+    }
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <div className="text-xs text-slate-300 mb-1.5">O‘quvchi hisoblari</div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-50">O‘quvchilar</h1>
+          <div className="text-xs text-slate-300 mb-1.5">O'quvchi hisoblari</div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-50">O'quvchilar</h1>
           <p className="mt-1 text-xs text-slate-300 max-w-xl">
-            O‘quvchilarni ID orqali boshqaring, ism va parollarni tahrirlang. Har bir o‘quvchi progressi alohida saqlanadi.
+            O'quvchilarni ID orqali boshqaring, ism va parollarni tahrirlang.
           </p>
         </div>
         <button
@@ -69,18 +74,18 @@ export function TeacherStudentsPage() {
           onClick={openCreate}
           className="inline-flex items-center rounded-2xl bg-gradient-to-r from-emerald-500 to-primary-500 px-4 py-2 text-xs font-semibold text-white shadow-glow hover:brightness-110 transition-all"
         >
-          Yangi o‘quvchi yaratish
+          Yangi o'quvchi yaratish
         </button>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-950/80">
         <div className="px-4 py-2.5 border-b border-slate-800 text-[11px] text-slate-300 flex justify-between">
-          <span>O‘quvchilar ro‘yxati</span>
+          <span>O'quvchilar ro'yxati</span>
           <span>{students.length} nafar</span>
         </div>
         {students.length === 0 ? (
           <div className="px-4 py-6 text-xs text-slate-400">
-            Hozircha birorta ham o‘quvchi yaratilmagan. Siz o‘qituvchi sifatida ID berish orqali o‘quvchi hisobi yarata olasiz.
+            Hozircha birorta ham o'quvchi yaratilmagan.
           </div>
         ) : (
           <div className="divide-y divide-slate-800 text-xs">
@@ -110,7 +115,7 @@ export function TeacherStudentsPage() {
                     onClick={() => setConfirmDelete(student)}
                     className="rounded-xl border border-rose-500/60 bg-rose-500/15 px-3 py-1 text-[11px] text-rose-100 hover:bg-rose-500/25 transition-colors"
                   >
-                    O‘chirish
+                    O'chirish
                   </button>
                 </div>
               </div>
@@ -121,7 +126,7 @@ export function TeacherStudentsPage() {
 
       <Modal
         open={!!editing}
-        title={editing?.id ? "O‘quvchini tahrirlash" : "Yangi o‘quvchi yaratish"}
+        title={editing?.id ? "O'quvchini tahrirlash" : "Yangi o'quvchi yaratish"}
         tone="primary"
         confirmLabel={editing?.id ? "Saqlash" : "Yaratish"}
         onCancel={() => setEditing(null)}
@@ -132,38 +137,32 @@ export function TeacherStudentsPage() {
       >
         <form className="space-y-3 text-xs" onSubmit={handleSubmit}>
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-200">
-              O‘quvchi ID (ixtiyoriy)
-            </label>
+            <label className="text-[11px] text-slate-200">O'quvchi ID (ixtiyoriy)</label>
             <input
               value={form.id}
               disabled={!!editing?.id}
               onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
               className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-1.5 text-xs text-slate-50 placeholder:text-slate-500 disabled:opacity-60 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              placeholder="Agar bo‘sh qoldirsangiz, tizim avtomatik yaratadi."
+              placeholder="Agar bo'sh qoldirsangiz, tizim avtomatik yaratadi."
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-200">
-              To‘liq ism
-            </label>
+            <label className="text-[11px] text-slate-200">To'liq ism</label>
             <input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-1.5 text-xs text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              placeholder="O‘quvchi ismi va familiyasi"
+              placeholder="O'quvchi ismi va familiyasi"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-200">
-              Parol
-            </label>
+            <label className="text-[11px] text-slate-200">Parol</label>
             <input
               type="password"
               value={form.password}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-1.5 text-xs text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              placeholder="Agar bo‘sh qoldirsangiz, eski parol saqlanadi."
+              placeholder="Agar bo'sh qoldirsangiz, eski parol saqlanadi."
             />
           </div>
         </form>
@@ -171,19 +170,13 @@ export function TeacherStudentsPage() {
 
       <Modal
         open={!!confirmDelete}
-        title="O‘quvchini o‘chirish"
-        description="Bu o‘quvchining hisobini o‘chirasiz. Uning XP va natijalari keyingi yangilanishlarda yo‘qolishi mumkin. Ishonchingiz komilmi?"
+        title="O'quvchini o'chirish"
+        description="Bu o'quvchining hisobini o'chirasiz. Ishonchingiz komilmi?"
         tone="danger"
-        confirmLabel="Ha, o‘chirish"
+        confirmLabel="Ha, o'chirish"
         onCancel={() => setConfirmDelete(null)}
-        onConfirm={() => {
-          if (confirmDelete) {
-            deleteUser(confirmDelete.id)
-            setConfirmDelete(null)
-          }
-        }}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   )
 }
-

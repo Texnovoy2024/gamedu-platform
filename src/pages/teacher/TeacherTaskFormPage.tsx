@@ -54,22 +54,26 @@ export function TeacherTaskFormPage() {
   // ── Edit rejimida mavjud topshiriqni yuklash ──────────────────────────────
   useEffect(() => {
     if (!isEdit) { setLoading(false); return }
-    const task = getTasks().find(t => t.id === taskId)
-    if (!task) { alert('Topshiriq topilmadi'); navigate('/teacher/tasks'); return }
-    setForm({
-      title:        task.title,
-      description:  task.description || '',
-      xp:           String(task.xp),
-      difficulty:   task.difficulty,
-      type:         task.type || 'multiple-choice',
-      deadline:     task.deadline ?? '',
-      bonusXp:      String(task.bonusXp ?? 0),
-      timeLimit:    String(task.timeLimit ?? 0),
-      questions:    task.questions ?? [],
-      anagramWords: task.anagramWords?.join('\n') ?? '',
-      anagramHints: (task as any).anagramHints?.join('\n') ?? '',
-    })
-    setLoading(false)
+    async function load() {
+      const tasks = await getTasks()
+      const task = tasks.find(t => t.id === taskId)
+      if (!task) { alert('Topshiriq topilmadi'); navigate('/teacher/tasks'); return }
+      setForm({
+        title:        task.title,
+        description:  task.description || '',
+        xp:           String(task.xp),
+        difficulty:   task.difficulty,
+        type:         task.type || 'multiple-choice',
+        deadline:     task.deadline ?? '',
+        bonusXp:      String(task.bonusXp ?? 0),
+        timeLimit:    String(task.timeLimit ?? 0),
+        questions:    task.questions ?? [],
+        anagramWords: task.anagramWords?.join('\n') ?? '',
+        anagramHints: (task as any).anagramHints?.join('\n') ?? '',
+      })
+      setLoading(false)
+    }
+    load()
   }, [taskId, isEdit, navigate])
 
   // ── Vaqtni avtomatik hisoblash ────────────────────────────────────────────
@@ -208,7 +212,7 @@ export function TeacherTaskFormPage() {
     setForm(f => ({ ...f, questions: f.questions.filter((_, idx) => idx !== i) }))
 
   // ── Saqlash / Nashr ───────────────────────────────────────────────────────
-  const handleSubmit = (publish: boolean) => {
+  const handleSubmit = async (publish: boolean) => {
     const xp = Number(form.xp)
     if (!form.title.trim() || isNaN(xp) || xp <= 0) {
       alert("Nomi va XP to'g'ri kiritilishi shart!")
@@ -244,7 +248,8 @@ export function TeacherTaskFormPage() {
 
     let task: Task
     if (isEdit && taskId) {
-      const orig = getTasks().find(t => t.id === taskId)!
+      const tasks = await getTasks()
+      const orig = tasks.find(t => t.id === taskId)!
       task = { ...orig, ...base }
     } else {
       task = {
@@ -255,7 +260,7 @@ export function TeacherTaskFormPage() {
       } as Task
     }
 
-    upsertTask(task)
+    await upsertTask(task)
     alert(publish ? 'Nashr qilindi!' : "Qoralama sifatida saqlandi")
     navigate('/teacher/tasks')
   }

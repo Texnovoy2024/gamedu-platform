@@ -7,6 +7,7 @@ import {
   LogOut, Flame, Coins, Gamepad2,
 } from 'lucide-react'
 import { getCurrentUserId, getCoinData, getStreak, setCurrentUserId } from '../storage'
+import type { CoinData, StreakData } from '../types'
 import logoImg from '../assets/logo.png'
 
 type Variant = 'teacher' | 'student'
@@ -38,12 +39,24 @@ export function AppShell({ variant, children }: Props) {
   const navigate = useNavigate()
   const items = variant === 'teacher' ? teacherNav : studentNav
   const [showMobileHeader, setShowMobileHeader] = useState(false)
+  const [coinData, setCoinData] = useState<CoinData | null>(null)
+  const [streak, setStreak] = useState<StreakData | null>(null)
 
   const currentId = getCurrentUserId()
-  const coinData = variant === 'student' && currentId ? getCoinData(currentId) : null
-  const streak = variant === 'student' && currentId ? getStreak(currentId) : null
 
-  // Scroll listener for mobile header
+  useEffect(() => {
+    if (variant !== 'student' || !currentId) return
+    async function loadData() {
+      const [coins, str] = await Promise.all([
+        getCoinData(currentId!),
+        getStreak(currentId!),
+      ])
+      setCoinData(coins)
+      setStreak(str)
+    }
+    loadData()
+  }, [variant, currentId])
+
   useEffect(() => {
     const handleScroll = () => {
       setShowMobileHeader(window.scrollY > 100)
@@ -164,15 +177,15 @@ export function AppShell({ variant, children }: Props) {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 relative z-10 md:ml-64">
-        {/* Mobile header - doim ko'rinadi, scroll qilganda style o'zgaradi */}
+        {/* Mobile header */}
         <div className={`md:hidden px-4 py-3 border-b flex items-center justify-between fixed top-0 left-0 right-0 z-30 transition-all duration-300 ${
-          showMobileHeader 
-            ? 'backdrop-blur-xl shadow-lg' 
+          showMobileHeader
+            ? 'backdrop-blur-xl shadow-lg'
             : 'backdrop-blur-sm'
         } ${
           variant === 'student'
-            ? showMobileHeader 
-              ? 'border-purple-900/50 bg-black/90' 
+            ? showMobileHeader
+              ? 'border-purple-900/50 bg-black/90'
               : 'border-purple-900/20 bg-black/40'
             : showMobileHeader
               ? 'border-slate-800 bg-slate-950/95'
@@ -180,11 +193,7 @@ export function AppShell({ variant, children }: Props) {
         }`}>
           <div className="flex items-center gap-3">
             <Link to="/">
-              <img
-                src={logoImg}
-                alt="GamEdu Logo"
-                className="h-9 w-9 rounded-xl object-cover"
-              />
+              <img src={logoImg} alt="GamEdu Logo" className="h-9 w-9 rounded-xl object-cover" />
             </Link>
           </div>
 

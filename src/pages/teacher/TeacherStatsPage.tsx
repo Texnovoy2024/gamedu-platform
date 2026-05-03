@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart3, TrendingUp, CheckCircle2, ClipboardList, Users, Star, Trophy, Medal } from 'lucide-react'
 import { getRanking, getTasks, getUsers, getTitleForLevel } from '../../storage'
+import type { Task, User, StudentStats } from '../../types'
 
 const rankIcons = [
   <Trophy size={14} className="text-yellow-400" />,
@@ -9,9 +11,19 @@ const rankIcons = [
 ]
 
 export function TeacherStatsPage() {
-  const ranking  = getRanking()
-  const tasks    = getTasks()
-  const students = getUsers().filter(u => u.role === 'student')
+  const [ranking,  setRanking]  = useState<StudentStats[]>([])
+  const [tasks,    setTasks]    = useState<Task[]>([])
+  const [students, setStudents] = useState<User[]>([])
+
+  useEffect(() => {
+    async function load() {
+      const [r, t, u] = await Promise.all([getRanking(), getTasks(), getUsers()])
+      setRanking(r)
+      setTasks(t)
+      setStudents(u.filter(u => u.role === 'student'))
+    }
+    load()
+  }, [])
 
   const totalXp        = ranking.reduce((s, r) => s + r.totalXp, 0)
   const completedTasks = ranking.reduce((s, r) => s + r.completedTasks, 0)
@@ -35,7 +47,6 @@ export function TeacherStatsPage() {
         </p>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {summaryCards.map(({ label, value, color, Icon }, i) => (
           <motion.div
@@ -52,7 +63,6 @@ export function TeacherStatsPage() {
         ))}
       </div>
 
-      {/* Ranking table */}
       <div className="rounded-2xl border border-slate-800 bg-slate-950/80 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-800 text-xs text-slate-500 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
@@ -82,18 +92,15 @@ export function TeacherStatsPage() {
                 }`}>
                   {index < 3 ? rankIcons[index] : <span className="text-xs font-bold text-slate-500">{index + 1}</span>}
                 </div>
-
                 <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
                   <Star size={13} className="text-slate-400" />
                 </div>
-
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-slate-100 truncate">{row.studentId}</div>
                   <div className="text-xs text-slate-500">
                     {getTitleForLevel(row.level)} · {row.level}-daraja · {row.completedTasks} topshiriq
                   </div>
                 </div>
-
                 <div className="flex items-center gap-1 font-bold text-emerald-300 shrink-0">
                   <TrendingUp size={12} /> {row.totalXp}
                 </div>

@@ -1,37 +1,17 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Flame,
-  Coins,
-  Star,
-  CheckCircle2,
-  ClipboardList,
-  Calendar,
-  Zap,
-  Target,
-  LogIn,
-  TrendingUp,
-  Leaf,
-  Rocket,
-  Crown,
-  Gem,
-  Trophy,
+  Flame, Coins, Star, CheckCircle2, ClipboardList, Calendar,
+  Zap, Target, LogIn, TrendingUp, Leaf, Rocket, Crown, Gem, Trophy,
   Flame as FlameIcon,
 } from 'lucide-react'
 import {
-  getCurrentUserId,
-  calculateStudentStats,
-  getStreak,
-  getCoinData,
-  getDailyQuests,
-  updateStreak,
-  getTitleForLevel,
-  getAvatarForLevel,
-  xpForLevel,
-  getUsers,
+  getCurrentUserId, calculateStudentStats, getStreak, getCoinData,
+  getDailyQuests, updateStreak, getTitleForLevel, getAvatarForLevel,
+  xpForLevel, getUsers,
 } from '../../storage'
 import { XpBar } from '../../components/XpBar'
-import type { DailyQuest, StreakData, CoinData } from '../../types'
+import type { DailyQuest, StreakData, CoinData, StudentStats } from '../../types'
 
 const questIcons: Record<string, React.ReactNode> = {
   complete_tasks: <ClipboardList size={20} className="text-blue-400" />,
@@ -40,42 +20,38 @@ const questIcons: Record<string, React.ReactNode> = {
   login:          <LogIn size={20} className="text-emerald-400" />,
 }
 
-// Map avatar key → lucide icon component
 const AVATAR_ICON_MAP: Record<string, React.ElementType> = {
-  leaf:   Leaf,
-  target: Target,
-  trophy: Trophy,
-  zap:    Zap,
-  gem:    Gem,
-  flame:  FlameIcon,
-  crown:  Crown,
-  rocket: Rocket,
-  star:   Star,
+  leaf: Leaf, target: Target, trophy: Trophy, zap: Zap,
+  gem: Gem, flame: FlameIcon, crown: Crown, rocket: Rocket, star: Star,
 }
 
 export function StudentDashboard() {
   const currentId = getCurrentUserId()
-  const [stats, setStats] = useState(() =>
-    currentId
-      ? calculateStudentStats(currentId)
-      : { totalXp: 0, level: 1, completedTasks: 0, studentId: '' }
-  )
-  const [streak, setStreak] = useState<StreakData>({
-    userId: '', currentStreak: 0, longestStreak: 0, lastActiveDate: '', activeDates: [],
-  })
+  const [stats, setStats] = useState<StudentStats>({ totalXp: 0, level: 1, completedTasks: 0, studentId: '' })
+  const [streak, setStreak] = useState<StreakData>({ userId: '', currentStreak: 0, longestStreak: 0, lastActiveDate: '', activeDates: [] })
   const [coinData, setCoinData] = useState<CoinData>({ userId: '', coins: 0, totalEarned: 0 })
   const [quests, setQuests] = useState<DailyQuest[]>([])
   const [userName, setUserName] = useState('')
 
   useEffect(() => {
     if (!currentId) return
-    updateStreak(currentId)
-    setStats(calculateStudentStats(currentId))
-    setStreak(getStreak(currentId))
-    setCoinData(getCoinData(currentId))
-    setQuests(getDailyQuests(currentId))
-    const user = getUsers().find(u => u.id === currentId)
-    setUserName(user?.name || currentId)
+    async function load() {
+      const [s, str, coins, q, users] = await Promise.all([
+        calculateStudentStats(currentId!),
+        getStreak(currentId!),
+        getCoinData(currentId!),
+        getDailyQuests(currentId!),
+        getUsers(),
+      ])
+      await updateStreak(currentId!)
+      setStats(s)
+      setStreak(str)
+      setCoinData(coins)
+      setQuests(q)
+      const user = users.find(u => u.id === currentId)
+      setUserName(user?.name || currentId!)
+    }
+    load()
   }, [currentId])
 
   const title      = getTitleForLevel(stats.level)
@@ -89,15 +65,14 @@ export function StudentDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="text-xs text-slate-500 mb-1">GamEdu o'quvchi paneli</div>
-        <h1 className="text-2xl font-bold text-slate-50">Xush kelibsiz, {userName}!</h1>        <p className="mt-1 text-sm text-slate-400">{title} · {stats.level}-daraja</p>
+        <h1 className="text-2xl font-bold text-slate-50">Xush kelibsiz, {userName}!</h1>
+        <p className="mt-1 text-sm text-slate-400">{title} · {stats.level}-daraja</p>
       </motion.div>
 
       {/* Top stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {/* Level + XP card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.08 }}
           className="col-span-2 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-5 space-y-3"
@@ -116,13 +91,11 @@ export function StudentDashboard() {
           </div>
           <XpBar currentXp={stats.totalXp} level={stats.level} />
           <div className="text-xs text-slate-500">
-            Keyingi darajaga{' '}
-            <span className="text-primary-300 font-semibold">{xpToNext} XP</span> kerak
+            Keyingi darajaga <span className="text-primary-300 font-semibold">{xpToNext} XP</span> kerak
             &nbsp;·&nbsp;{xpProgress}% tayyor
           </div>
         </motion.div>
 
-        {/* Streak */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.13 }}
           className="rounded-2xl border border-orange-500/25 bg-gradient-to-br from-orange-950/30 to-slate-950 p-4 space-y-2"
@@ -142,7 +115,6 @@ export function StudentDashboard() {
           )}
         </motion.div>
 
-        {/* Coins */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.18 }}
           className="rounded-2xl border border-yellow-500/25 bg-gradient-to-br from-yellow-950/30 to-slate-950 p-4 space-y-2"
@@ -161,9 +133,9 @@ export function StudentDashboard() {
       {/* Mini stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Umumiy XP', value: stats.totalXp, color: 'text-emerald-300', Icon: TrendingUp },
-          { label: 'Topshiriqlar', value: stats.completedTasks, color: 'text-accent-400', Icon: CheckCircle2 },
-          { label: 'Kunlik vazifa', value: `${completedQuests}/${quests.length}`, color: 'text-blue-300', Icon: ClipboardList },
+          { label: 'Umumiy XP',   value: stats.totalXp,                        color: 'text-emerald-300', Icon: TrendingUp },
+          { label: 'Topshiriqlar', value: stats.completedTasks,                 color: 'text-accent-400',  Icon: CheckCircle2 },
+          { label: 'Kunlik vazifa', value: `${completedQuests}/${quests.length}`, color: 'text-blue-300',   Icon: ClipboardList },
         ].map(({ label, value, color, Icon }, i) => (
           <motion.div
             key={label}
@@ -189,7 +161,6 @@ export function StudentDashboard() {
           </div>
           <span className="text-xs text-slate-500">{completedQuests}/{quests.length} bajarildi</span>
         </div>
-
         <div className="divide-y divide-slate-800/50">
           {quests.map((quest, i) => (
             <motion.div
@@ -219,9 +190,7 @@ export function StudentDashboard() {
                     style={{ width: `${Math.min(100, (quest.currentCount / quest.targetCount) * 100)}%` }}
                   />
                 </div>
-                <div className="text-[10px] text-slate-600 mt-0.5">
-                  {quest.currentCount}/{quest.targetCount}
-                </div>
+                <div className="text-[10px] text-slate-600 mt-0.5">{quest.currentCount}/{quest.targetCount}</div>
               </div>
               <div className="text-right shrink-0 space-y-0.5">
                 <div className="text-xs text-emerald-400 font-semibold">+{quest.rewardXp} XP</div>
@@ -258,7 +227,6 @@ function StreakCalendar({ activeDates }: { activeDates: string[] }) {
     const dateStr = d.toISOString().split('T')[0]
     return { date: dateStr, active: activeDates.includes(dateStr), isToday: i === 29 }
   })
-
   return (
     <div className="flex flex-wrap gap-1.5">
       {days.map(day => (

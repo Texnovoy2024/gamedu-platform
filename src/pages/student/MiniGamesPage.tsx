@@ -289,20 +289,20 @@ function GameBackground({ gameId, children }: { gameId: string; children: React.
 }
 
 // ─── XP berish yordamchi ─────────────────────────────────────────────────────
-function awardMiniGameXp(userId: string, gameId: string, xp: number): { leveledUp: boolean; newLevel: number; earnedCoins: number } {
+async function awardMiniGameXp(userId: string, gameId: string, xp: number): Promise<{ leveledUp: boolean; newLevel: number; earnedCoins: number }> {
   const coins = Math.max(1, Math.floor(xp / 10))
-  const progress = getProgress()
+  const progress = await getProgress()
   const id = `minigame_${gameId}_${userId}_${Date.now()}`
   const record: StudentTaskProgress = {
     id, studentId: userId, taskId: `minigame_${gameId}`,
     status: 'completed', earnedXp: xp, completedAt: new Date().toISOString(),
   }
   progress.push(record)
-  saveProgress(progress)
-  addCoins(userId, coins)
-  const oldLevel = calculateStudentStats(userId).level
-  const newStats = calculateStudentStats(userId)
-  return { leveledUp: newStats.level > oldLevel, newLevel: newStats.level, earnedCoins: coins }
+  await saveProgress(progress)
+  await addCoins(userId, coins)
+  const oldStats = await calculateStudentStats(userId)
+  const newStats = await calculateStudentStats(userId)
+  return { leveledUp: newStats.level > oldStats.level, newLevel: newStats.level, earnedCoins: coins }
 }
 
 // ─── SAVOL BANKI (mini-game uchun) ───────────────────────────────────────────
@@ -493,10 +493,10 @@ export function MiniGamesPage() {
     setActiveGame(gameId)
   }
 
-  const handleGameEnd = (xp: number, gameId: string) => {
+  const handleGameEnd = async (xp: number, gameId: string) => {
     stopBgMusic()
     if (!userId || xp <= 0) { setActiveGame(null); return }
-    const result = awardMiniGameXp(userId, `${gameId}_${Date.now()}`, xp)
+    const result = await awardMiniGameXp(userId, `${gameId}_${Date.now()}`, xp)
     setActiveGame(null)
     if (result.leveledUp) {
       setLevelUpData({ newLevel: result.newLevel, earnedXp: xp, earnedCoins: result.earnedCoins })

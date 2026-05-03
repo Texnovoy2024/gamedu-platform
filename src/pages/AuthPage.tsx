@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { findUserByCredentials, generateId, upsertUser, setCurrentUserId } from '../storage';
+import { findUserByCredentials, generateId, upsertUser, setCurrentUserId, getUsers } from '../storage';
 import type { UserRole } from '../types';
 import { Modal } from '../components/Modal';
 
@@ -21,28 +21,25 @@ export function AuthPage() {
     message: '',
   });
 
-  
+  // Default teacher ni Firebase ga qo'shish (faqat bir marta)
   useEffect(() => {
-    const usersRaw = localStorage.getItem('gamedu_users');
-    let users: any[] = usersRaw ? JSON.parse(usersRaw) : [];
-
-    if (!Array.isArray(users) || users.length === 0 || !users.some(u => u.id === 'nilufar05')) {
-      const defaultTeacher = {
-        id: "nilufar05",
-        name: "Nilufar (default o'qituvchi)",
-        password: "123456",
-        role: "teacher",
-        createdAt: new Date().toISOString(),
-      };
-
-      users = [...users, defaultTeacher];
-      localStorage.setItem('gamedu_users', JSON.stringify(users));
-
-      console.log('[Auth] Default teacher hisobi avtomatik qo\'shildi: nilufar05 / 123456');
+    async function ensureDefaultTeacher() {
+      const users = await getUsers();
+      if (!users.some(u => u.id === 'nilufar05')) {
+        await upsertUser({
+          id: 'nilufar05',
+          name: "Nilufar (default o'qituvchi)",
+          password: '123456',
+          role: 'teacher',
+          createdAt: new Date().toISOString(),
+        });
+        console.log("[Auth] Default teacher Firebase ga qo'shildi: nilufar05 / 123456");
+      }
     }
+    ensureDefaultTeacher();
   }, []);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
@@ -53,49 +50,47 @@ export function AuthPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
-      if (mode === 'login') {
-        const user = findUserByCredentials(id.trim(), password.trim());
-        if (!user) {
-          setError("ID yoki parol noto'g'ri. Qayta urinib ko'ring.");
-          setLoading(false);
-          return;
-        }
-
-        setCurrentUserId(user.id);
+    if (mode === 'login') {
+      const user = await findUserByCredentials(id.trim(), password.trim());
+      if (!user) {
+        setError("ID yoki parol noto'g'ri. Qayta urinib ko'ring.");
         setLoading(false);
-        setSuccessModal({
-          open: true,
-          message: user.role === 'teacher'
-            ? "Xush kelibsiz! O'qituvchi paneliga yo'naltirilmoqdasiz."
-            : "Xush kelibsiz! O'quvchi paneliga yo'naltirilmoqdasiz.",
-        });
-
-        setTimeout(() => navigate(user.role === 'teacher' ? '/teacher' : '/student'), 900);
-      } else {
-        const userId = id.trim() || generateId(role === 'teacher' ? 't' : 's');
-        const now = new Date().toISOString();
-
-        upsertUser({
-          id: userId,
-          name: name.trim(),
-          password: password.trim(),
-          role,
-          createdAt: now,
-        });
-
-        setCurrentUserId(userId);
-        setLoading(false);
-        setSuccessModal({
-          open: true,
-          message: role === 'teacher'
-            ? "Hisob muvaffaqiyatli yaratildi! O'qituvchi sifatida davom eting."
-            : "Hisob muvaffaqiyatli yaratildi! O'quvchi sifatida boshlang!",
-        });
-
-        setTimeout(() => navigate(role === 'teacher' ? '/teacher' : '/student'), 1000);
+        return;
       }
-    }, 400);
+
+      setCurrentUserId(user.id);
+      setLoading(false);
+      setSuccessModal({
+        open: true,
+        message: user.role === 'teacher'
+          ? "Xush kelibsiz! O'qituvchi paneliga yo'naltirilmoqdasiz."
+          : "Xush kelibsiz! O'quvchi paneliga yo'naltirilmoqdasiz.",
+      });
+
+      setTimeout(() => navigate(user.role === 'teacher' ? '/teacher' : '/student'), 900);
+    } else {
+      const userId = id.trim() || generateId(role === 'teacher' ? 't' : 's');
+      const now = new Date().toISOString();
+
+      await upsertUser({
+        id: userId,
+        name: name.trim(),
+        password: password.trim(),
+        role,
+        createdAt: now,
+      });
+
+      setCurrentUserId(userId);
+      setLoading(false);
+      setSuccessModal({
+        open: true,
+        message: role === 'teacher'
+          ? "Hisob muvaffaqiyatli yaratildi! O'qituvchi sifatida davom eting."
+          : "Hisob muvaffaqiyatli yaratildi! O'quvchi sifatida boshlang!",
+      });
+
+      setTimeout(() => navigate(role === 'teacher' ? '/teacher' : '/student'), 1000);
+    }
   }
 
   return (
@@ -162,11 +157,7 @@ export function AuthPage() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold py-3.5 rounded-xl shadow-lg hover:brightness-105 disabled:opacity-60 transition-all mt-3"
             >
-              {loading
-                ? 'Jarayon...'
-                : mode === 'login'
-                ? 'Kirish'
-                : "Ro'yxatdan o'tish"}
+              {loading ? 'Yuklanmoqda...' : mode === 'login' ? 'Kirish' : "Ro'yxatdan o'tish"}
             </button>
           </form>
         </div>

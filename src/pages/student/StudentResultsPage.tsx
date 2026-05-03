@@ -1,38 +1,45 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useState } from 'react'
 import {
-  TrendingUp,
-  CheckCircle2,
-  Coins,
-  Flame,
-  ClipboardList,
-  Circle,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
+  TrendingUp, CheckCircle2, Coins, Flame, ClipboardList,
+  Circle, Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { getCurrentUserId, getProgress, getTasks, getCoinData } from '../../storage'
+import type { Task, StudentTaskProgress, CoinData } from '../../types'
 
 const ITEMS_PER_PAGE = 10
 
 export function StudentResultsPage() {
   const [currentPage, setCurrentPage] = useState(1)
+  const [allProgress, setAllProgress] = useState<StudentTaskProgress[]>([])
+  const [tasks,    setTasks]    = useState<Task[]>([])
+  const [coinData, setCoinData] = useState<CoinData | null>(null)
   const currentId = getCurrentUserId()
-  const allProgress = getProgress()
-    .filter(p => p.studentId === currentId && p.status === 'completed')
-    .sort((a, b) =>
-      (b.completedAt ? new Date(b.completedAt).getTime() : 0) -
-      (a.completedAt ? new Date(a.completedAt).getTime() : 0)
-    )
-  
+
+  useEffect(() => {
+    async function load() {
+      const [prog, t, coins] = await Promise.all([
+        getProgress(),
+        getTasks(),
+        currentId ? getCoinData(currentId) : Promise.resolve(null),
+      ])
+      const filtered = prog
+        .filter(p => p.studentId === currentId && p.status === 'completed')
+        .sort((a, b) =>
+          (b.completedAt ? new Date(b.completedAt).getTime() : 0) -
+          (a.completedAt ? new Date(a.completedAt).getTime() : 0)
+        )
+      setAllProgress(filtered)
+      setTasks(t)
+      setCoinData(coins)
+    }
+    load()
+  }, [currentId])
+
   const totalPages = Math.ceil(allProgress.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  const progress = allProgress.slice(startIndex, endIndex)
-  
-  const tasks    = getTasks()
-  const coinData = currentId ? getCoinData(currentId) : null
-  const totalXp  = allProgress.reduce((s, p) => s + p.earnedXp, 0)
+  const progress   = allProgress.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  const totalXp    = allProgress.reduce((s, p) => s + p.earnedXp, 0)
 
   return (
     <div className="space-y-5">
@@ -44,7 +51,6 @@ export function StudentResultsPage() {
         </p>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 flex flex-col items-center gap-1">
           <TrendingUp size={18} className="text-emerald-400" />
@@ -63,7 +69,6 @@ export function StudentResultsPage() {
         </div>
       </div>
 
-      {/* List */}
       <div className="rounded-2xl border border-slate-800 bg-slate-950/80 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-800 text-xs text-slate-500 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
@@ -80,42 +85,29 @@ export function StudentResultsPage() {
         ) : (
           <div className="divide-y divide-slate-800/50">
             {progress.map((record, i) => {
-              const task            = tasks.find(t => t.id === record.taskId)
-              const isStreak        = record.taskId.startsWith('streak_')
-              const isQuest         = record.taskId.startsWith('quest_')
-              const isSpecial       = isStreak || isQuest
-              const earnedCoins     = Math.max(1, Math.floor(record.earnedXp / 10))
-
-              const diffColor =
+              const task        = tasks.find(t => t.id === record.taskId)
+              const isStreak    = record.taskId.startsWith('streak_')
+              const isQuest     = record.taskId.startsWith('quest_')
+              const isSpecial   = isStreak || isQuest
+              const earnedCoins = Math.max(1, Math.floor(record.earnedXp / 10))
+              const diffColor   =
                 task?.difficulty === 'advanced'     ? 'text-rose-400' :
-                task?.difficulty === 'intermediate' ? 'text-yellow-400' :
-                                                      'text-emerald-400'
+                task?.difficulty === 'intermediate' ? 'text-yellow-400' : 'text-emerald-400'
 
               return (
                 <motion.div
                   key={record.id}
-                  initial={{ opacity: 0, x: -16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.025 }}
+                  initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.025 }}
                   className="px-4 py-3 flex items-center gap-3"
                 >
-                  {/* Icon */}
                   <div className="shrink-0">
-                    {isStreak ? (
-                      <Flame size={18} className="text-orange-400" />
-                    ) : isQuest ? (
-                      <ClipboardList size={18} className="text-blue-400" />
-                    ) : (
-                      <Circle size={18} className={diffColor} fill="currentColor" fillOpacity={0.2} />
-                    )}
+                    {isStreak ? <Flame size={18} className="text-orange-400" />
+                     : isQuest ? <ClipboardList size={18} className="text-blue-400" />
+                     : <Circle size={18} className={diffColor} fill="currentColor" fillOpacity={0.2} />}
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-slate-100 truncate">
-                      {isStreak ? 'Streak bonusi'
-                       : isQuest ? 'Kunlik vazifa bonusi'
-                       : task?.title || 'Topshiriq'}
+                      {isStreak ? 'Streak bonusi' : isQuest ? 'Kunlik vazifa bonusi' : task?.title || 'Topshiriq'}
                     </div>
                     {record.completedAt && (
                       <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
@@ -127,17 +119,13 @@ export function StudentResultsPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Rewards */}
                   <div className="text-right shrink-0 space-y-0.5">
                     <div className="flex items-center justify-end gap-1 text-sm font-bold text-emerald-300">
-                      <TrendingUp size={12} />
-                      +{record.earnedXp}
+                      <TrendingUp size={12} /> +{record.earnedXp}
                     </div>
                     {!isSpecial && (
                       <div className="flex items-center justify-end gap-0.5 text-xs text-yellow-400">
-                        <Coins size={10} />
-                        +{earnedCoins}
+                        <Coins size={10} /> +{earnedCoins}
                       </div>
                     )}
                   </div>
@@ -147,7 +135,6 @@ export function StudentResultsPage() {
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
             <button
@@ -155,10 +142,8 @@ export function StudentResultsPage() {
               disabled={currentPage === 1}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-slate-400 hover:text-slate-200 hover:bg-slate-800"
             >
-              <ChevronLeft size={14} />
-              Oldingi
+              <ChevronLeft size={14} /> Oldingi
             </button>
-
             <div className="flex items-center gap-1">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
@@ -174,14 +159,12 @@ export function StudentResultsPage() {
                 </button>
               ))}
             </div>
-
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed text-slate-400 hover:text-slate-200 hover:bg-slate-800"
             >
-              Keyingi
-              <ChevronRight size={14} />
+              Keyingi <ChevronRight size={14} />
             </button>
           </div>
         )}
