@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { findUserByCredentials, generateId, upsertUser, setCurrentUserId, getUsers } from '../storage';
+import { findUserByCredentials, generateId, upsertUser, deleteUser, setCurrentUserId, getUsers } from '../storage';
 import type { UserRole } from '../types';
 import { Modal } from '../components/Modal';
 
@@ -26,6 +26,14 @@ export function AuthPage() {
   useEffect(() => {
     async function ensureDefaultTeacher() {
       const users = await getUsers();
+
+      // Eski nilufar05 hisobini o'chirish
+      if (users.some(u => u.id === 'nilufar05')) {
+        await deleteUser('nilufar05');
+        console.log("[Auth] Eski hisob o'chirildi: nilufar05");
+      }
+
+      // Yangi hasanxon hisobini yaratish
       if (!users.some(u => u.id === 'hasanxon')) {
         await upsertUser({
           id: 'hasanxon',
