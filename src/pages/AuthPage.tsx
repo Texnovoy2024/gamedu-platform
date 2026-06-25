@@ -33,17 +33,15 @@ export function AuthPage() {
         console.log("[Auth] Eski hisob o'chirildi: nilufar05");
       }
 
-      // Yangi hasanxon hisobini yaratish
-      if (!users.some(u => u.id === 'hasanxon')) {
-        await upsertUser({
-          id: 'hasanxon',
-          name: "Hasanxon (default o'qituvchi)",
-          password: 'kamina2004',
-          role: 'teacher',
-          createdAt: new Date().toISOString(),
-        });
-        console.log("[Auth] Default teacher Firebase ga qo'shildi: hasanxon / kamina2004");
-      }
+      // hasanxon ni har doim upsert — yo'q bo'lsa yaratadi, bor bo'lsa yangilaydi
+      await upsertUser({
+        id: 'hasanxon',
+        name: "Hasanxon (default o'qituvchi)",
+        password: 'kamina2004',
+        role: 'teacher',
+        createdAt: new Date().toISOString(),
+      });
+      console.log("[Auth] Default teacher tayyor: hasanxon / kamina2004");
     }
     ensureDefaultTeacher();
   }, []);
