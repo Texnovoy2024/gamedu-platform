@@ -25,15 +25,15 @@ export function AuthPage() {
   useEffect(() => {
     async function ensureDefaultTeacher() {
       const users = await getUsers();
-      if (!users.some(u => u.id === 'nilufar05')) {
+      if (!users.some(u => u.id === 'hasanxon')) {
         await upsertUser({
-          id: 'nilufar05',
-          name: "Nilufar (default o'qituvchi)",
-          password: '123456',
+          id: 'hasanxon',
+          name: "Hasanxon (default o'qituvchi)",
+          password: 'kamina2004',
           role: 'teacher',
           createdAt: new Date().toISOString(),
         });
-        console.log("[Auth] Default teacher Firebase ga qo'shildi: nilufar05 / 123456");
+        console.log("[Auth] Default teacher Firebase ga qo'shildi: hasanxon / kamina2004");
       }
     }
     ensureDefaultTeacher();
